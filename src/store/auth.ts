@@ -1,50 +1,81 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-type User = {
-  id: string;
-  email: string;
-  fullName?: string;
-  username?: string;
-  website?: string;
-};
+import { signUp as apiSignUp, login as apiLogin, getProfile, updateProfile, User, UpdateProfileData } from '../lib/api';
 
 type AuthState = {
   user: User | null;
+  token: string | null;
+  isLoading: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
-  updateProfile: (data: Partial<User>) => void;
+  updateProfile: (data: UpdateProfileData) => Promise<void>;
+  fetchProfile: () => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set: any, get: any) => ({
       user: null,
-      signUp: async (email, password) => {
-        // In a real app, you'd hash the password and make an API call
-        const newUser = {
-          id: Math.random().toString(36).substring(2),
-          email,
-        };
-        set({ user: newUser });
+      token: null,
+      isLoading: false,
+      signUp: async (email: string, password: string) => {
+        try {
+          const user = await apiSignUp(email, password);
+          // After signup, we need to login to get the token
+          const token = await apiLogin(email, password);
+          set({ user, token });
+        } catch (error) {
+          console.error('Signup error:', error);
+          throw error;
+        }
       },
-      signIn: async (email, password) => {
-        // In a real app, you'd verify credentials against an API
-        const user = {
-          id: Math.random().toString(36).substring(2),
-          email,
-        };
-        set({ user });
+      signIn: async (email: string, password: string) => {
+        try {
+          const token = await apiLogin(email, password);
+          const user = await getProfile(token);
+          set({ user, token });
+        } catch (error) {
+          console.error('Login error:', error);
+          throw error;
+        }
       },
       signOut: () => {
-        set({ user: null });
+        set({ user: null, token: null });
       },
-      updateProfile: (data) => {
-        set((state) => ({
-          user: state.user ? { ...state.user, ...data } : null,
-        }));
+      updateProfile: async (data: UpdateProfileData) => {
+        const { token } = get();
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
+        
+        try {
+          const updatedUser = await updateProfile(token, data);
+          set({ user: updatedUser });
+        } catch (error) {
+          console.error('Update profile error:', error);
+          throw error;
+        }
       },
+      fetchProfile: async () => {
+        const { token, isLoading } = get();
+        
+        // Skip if no token or already loading
+        if (!token || isLoading) {
+          return;
+        }
+        
+        set({ isLoading: true });
+        
+        try {
+          const user = await getProfile(token);
+          set({ user, isLoading: false });
+        } catch (error) {
+          console.error('Fetch profile error:', error);
+          // If token is invalid, sign out
+          set({ user: null, token: null, isLoading: false });
+        }
+      }
     }),
     {
       name: 'auth-storage',

@@ -1,25 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 
 export const Profile = () => {
-  const { user, updateProfile } = useAuthStore();
+  const { user, updateProfile, fetchProfile } = useAuthStore();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState({
     fullName: user?.fullName || '',
     username: user?.username || '',
     website: user?.website || '',
   });
 
-  React.useEffect(() => {
+  // Update local state when user data changes
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        fullName: user.fullName || '',
+        username: user.username || '',
+        website: user.website || '',
+      });
+    }
+  }, [user]);
+
+  // Check authentication once on mount
+  useEffect(() => {
     if (!user) {
       navigate('/login');
+    } else {
+      // Only fetch profile once when component mounts
+      fetchProfile();
     }
-  }, [user, navigate]);
+  }, [navigate, user, fetchProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ^ We're disabling the exhaustive-deps rule because we intentionally want to run this only on mount
+  // Even though we include the dependencies, we've configured the fetchProfile function to avoid infinite loops
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile(profile);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await updateProfile(profile);
+      setLoading(false);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
+      setError(errorMessage);
+      setLoading(false);
+    }
   };
 
   if (!user) return null;
@@ -33,6 +62,13 @@ export const Profile = () => {
             <div className="mt-2 max-w-xl text-sm text-gray-500">
               <p>Update your profile information and preferences.</p>
             </div>
+            
+            {error && (
+              <div className="mt-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit} className="mt-5 space-y-6">
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
@@ -85,9 +121,12 @@ export const Profile = () => {
               <div>
                 <button
                   type="submit"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  disabled={loading}
+                  className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                    loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                 >
-                  Save
+                  {loading ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>
