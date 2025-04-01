@@ -1,4 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+# Highlight requirements
+import highlight_io
+from highlight_io.integrations.fastapi import FastAPIMiddleware
+
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import timedelta
@@ -8,7 +12,16 @@ from .models import UserCreate, UserLogin, UserUpdate, User, Token
 from .database import get_user_by_email, create_user, verify_password, update_user, users_db
 from .auth import create_access_token, get_current_user_id
 
-app = FastAPI(title="Auth Demo API")
+H = highlight_io.H(
+	"5g5y21pe",
+	instrument_logging=True,
+	service_name="disaster-app",
+	service_version="git-sha",
+	environment="production",
+)
+
+app = FastAPI(title="Disaster App")
+app.add_middleware(FastAPIMiddleware)
 
 # Configure CORS
 app.add_middleware(
