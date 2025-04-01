@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
+import { identifyUser } from '../lib/highlight';
 
 export const SignUp = () => {
   const [email, setEmail] = useState('');
@@ -17,9 +18,19 @@ export const SignUp = () => {
     
     try {
       await signUp(email, password);
+      
+      // Get the user from the store after successful sign-up
+      const user = useAuthStore.getState().user;
+      
+      // Identify the user with Highlight.io
+      if (user) {
+        identifyUser(user.email, user.id);
+      }
+      
       navigate('/profile');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during signup');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during signup';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
