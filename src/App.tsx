@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ErrorBoundary } from '@highlight-run/react';
+import { useLDClient } from 'launchdarkly-react-client-sdk';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { SignUp } from './pages/SignUp';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
-import { useAuthStore } from './store/auth';
+import { useAuthStore, setLDClient } from './store/auth';
 import { initializeHighlight } from './lib/highlight';
 
 // Initialize Highlight.io
@@ -14,6 +15,14 @@ initializeHighlight();
 
 function App() {
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const ldClient = useLDClient();
+  
+  // Store LaunchDarkly client reference for use in auth store
+  useEffect(() => {
+    if (ldClient) {
+      setLDClient(ldClient);
+    }
+  }, [ldClient]);
   
   // Only fetch profile once when app mounts
   useEffect(() => {

@@ -2,7 +2,7 @@ import { H } from 'highlight.run';
 
 // Replace this with your actual Highlight project ID from app.highlight.io/setup
 // Using a placeholder value for demonstration purposes
-const PROJECT_ID = '5g5y21pe';
+const PROJECT_ID = '4d7y25qd';
 
 export const initializeHighlight = () => {
   H.init(PROJECT_ID, {

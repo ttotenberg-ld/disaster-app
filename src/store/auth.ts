@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getDefaultContext } from '../lib/launchdarkly';
 import { signUp as apiSignUp, login as apiLogin, getProfile, updateProfile, User, UpdateProfileData } from '../lib/api';
+
+// Global reference to LaunchDarkly client for use in actions like signOut
+let ldClientInstance: any = null;
+
+export const setLDClient = (client: any) => {
+  ldClientInstance = client;
+};
 
 type AuthState = {
   user: User | null;
@@ -41,6 +49,12 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       signOut: () => {
+        // Reset LaunchDarkly context to anonymous user
+        if (ldClientInstance) {
+          ldClientInstance.identify(getDefaultContext());
+        }
+        
+        // Clear authentication state
         set({ user: null, token: null });
       },
       updateProfile: async (data: UpdateProfileData) => {

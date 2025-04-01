@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLDClient } from 'launchdarkly-react-client-sdk';
 import { useAuthStore } from '../store/auth';
 import { identifyUser } from '../lib/highlight';
+import { createUserContext } from '../lib/launchdarkly';
 
 export const SignUp = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +12,7 @@ export const SignUp = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const signUp = useAuthStore((state) => state.signUp);
+  const ldClient = useLDClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,9 +25,14 @@ export const SignUp = () => {
       // Get the user from the store after successful sign-up
       const user = useAuthStore.getState().user;
       
-      // Identify the user with Highlight.io
       if (user) {
+        // Identify the user with Highlight.io
         identifyUser(user.email, user.id);
+        
+        // Update LaunchDarkly context with user information
+        if (ldClient) {
+          await ldClient.identify(createUserContext(user.email, user.id));
+        }
       }
       
       navigate('/profile');

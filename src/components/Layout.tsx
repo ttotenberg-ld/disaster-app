@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { LogOut } from 'lucide-react';
+import Logo from './Logo';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, signOut } = useAuthStore();
@@ -13,7 +14,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="flex justify-between h-16">
             <div className="flex">
               <Link to="/" className="flex items-center">
-                <span className="text-xl font-bold">YourBrand</span>
+                <Logo />
               </Link>
             </div>
             <div className="flex items-center">

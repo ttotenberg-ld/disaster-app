@@ -12,8 +12,12 @@ from .models import UserCreate, UserLogin, UserUpdate, User, Token
 from .database import get_user_by_email, create_user, verify_password, update_user, users_db
 from .auth import create_access_token, get_current_user_id
 
+# Import additional modules for image proxy
+import requests
+from fastapi.responses import Response
+
 H = highlight_io.H(
-	"5g5y21pe",
+	"4d7y25qd",
 	instrument_logging=True,
 	service_name="disaster-app",
 	service_version="git-sha",
@@ -108,4 +112,23 @@ async def update_me(user_update: UserUpdate, user_id: str = Depends(get_current_
         "fullName": updated_user.get("fullName"),
         "username": updated_user.get("username"),
         "website": updated_user.get("website")
-    } 
+    }
+
+
+@app.get("/api/proxy-image")
+async def proxy_image(url: str):
+    """
+    Proxy for images to avoid CORS issues.
+    Usage: /api/proxy-image?url=https://example.com/image.jpg
+    """
+    try:
+        response = requests.get(url, timeout=5)
+        return Response(
+            content=response.content, 
+            media_type=response.headers.get("Content-Type", "image/jpeg")
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to fetch image: {str(e)}"
+        ) 
