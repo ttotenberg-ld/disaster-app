@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLDClient } from 'launchdarkly-react-client-sdk';
 import { useAuthStore } from '../store/auth';
 import { identifyUser } from '../lib/highlight';
 import { createUserContext } from '../lib/launchdarkly';
+import { H } from 'highlight.run';
+import { generateRandomUserProfile } from '../lib/randomUser';
 
 export const SignUp = () => {
   const [email, setEmail] = useState('');
@@ -13,6 +15,20 @@ export const SignUp = () => {
   const navigate = useNavigate();
   const signUp = useAuthStore((state) => state.signUp);
   const ldClient = useLDClient();
+  
+  // Initialize with random values on component mount
+  useEffect(() => {
+    const profile = generateRandomUserProfile();
+    setEmail(profile.email);
+    setPassword(profile.password);
+    
+    // Store the profile data in sessionStorage for use during signup
+    sessionStorage.setItem('demoProfile', JSON.stringify({
+      fullName: profile.fullName,
+      username: profile.username,
+      website: profile.website
+    }));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,79 +54,78 @@ export const SignUp = () => {
       navigate('/profile');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred during signup';
-      setError(errorMessage);
+      
+      // Log the error to Highlight
+      H.track('SignUp Error', { 
+        errorMessage,
+        email,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Check if it's a server error (500) which would be from our intentional demo errors
+      if (errorMessage.includes('Service temporarily unavailable') || 
+          errorMessage.includes('high load') ||
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('Backend service')) {
+        // This is a demo error triggered by the new_auth flag
+        setError(`Error: ${errorMessage}`);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Create your account
-        </h2>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-            
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                  loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-              >
-                {loading ? 'Signing up...' : 'Sign up'}
-              </button>
-            </div>
-          </form>
+    <div className="max-w-md mx-auto mt-10 bg-white p-8 border border-gray-300 rounded-lg shadow-lg">
+      <h2 className="text-2xl font-bold mb-6 text-center">Sign Up</h2>
+      
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded relative" role="alert">
+          <span className="block sm:inline">{error}</span>
         </div>
-      </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div className="mb-6">
+          <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <button
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
+            disabled={loading}
+          >
+            {loading ? 'Signing up...' : 'Sign Up'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
