@@ -1,8 +1,21 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, RefreshCw } from 'lucide-react';
+import { PricingPlans } from '../components/PricingPlans';
+import { useTheme } from '../components/ThemeProvider';
 
 export const Home = () => {
+  const location = useLocation();
+  const { applyThemeClass } = useTheme();
+  const pricingRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to pricing if state indicates to do so
+  useEffect(() => {
+    if (location.state?.scrollToPricing && pricingRef.current) {
+      pricingRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.state]);
+
   return (
     <div className="relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
@@ -11,7 +24,7 @@ export const Home = () => {
             <div className="sm:text-center lg:text-left">
               <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                 <span className="block">Transform your</span>
-                <span className="block text-blue-600">digital experience</span>
+                <span className="block custom-primary-text">digital experience</span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
                 Join thousands of users who have already discovered the power of our platform. Start your journey today.
@@ -20,7 +33,7 @@ export const Home = () => {
                 <div className="rounded-md shadow">
                   <Link
                     to="/signup"
-                    className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
+                    className={`w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white ${applyThemeClass()} md:py-4 md:text-lg md:px-10`}
                   >
                     Get started
                     <ArrowRight className="ml-2 w-5 h-5" />
@@ -39,7 +52,7 @@ export const Home = () => {
           </div>
           <dl className="mt-12 space-y-10 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-8">
             <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+              <div className={`flex items-center justify-center h-12 w-12 rounded-md ${applyThemeClass()} text-white`}>
                 <Shield className="h-6 w-6" />
               </div>
               <dt className="mt-5 text-lg leading-6 font-medium text-gray-900">Secure by design</dt>
@@ -49,7 +62,7 @@ export const Home = () => {
             </div>
 
             <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+              <div className={`flex items-center justify-center h-12 w-12 rounded-md ${applyThemeClass()} text-white`}>
                 <Zap className="h-6 w-6" />
               </div>
               <dt className="mt-5 text-lg leading-6 font-medium text-gray-900">Lightning fast</dt>
@@ -59,7 +72,7 @@ export const Home = () => {
             </div>
 
             <div className="flex flex-col items-center">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+              <div className={`flex items-center justify-center h-12 w-12 rounded-md ${applyThemeClass()} text-white`}>
                 <RefreshCw className="h-6 w-6" />
               </div>
               <dt className="mt-5 text-lg leading-6 font-medium text-gray-900">Always up to date</dt>
@@ -69,6 +82,11 @@ export const Home = () => {
             </div>
           </dl>
         </div>
+      </div>
+      
+      {/* Pricing Plans Section */}
+      <div ref={pricingRef}>
+        <PricingPlans />
       </div>
     </div>
   );

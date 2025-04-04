@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getDefaultContext } from '../lib/launchdarkly';
 import { signUp as apiSignUp, login as apiLogin, getProfile, updateProfile, User, UpdateProfileData } from '../lib/api';
-import { LDContext } from 'launchdarkly-react-client-sdk';
+import { LDContext, LDFlagSet } from 'launchdarkly-react-client-sdk';
 import { generateRandomFullName, generateRandomUsername, generateRandomWebsite } from '../lib/randomUser';
 
 // Define the LaunchDarkly client interface (minimal implementation)
 interface LDClient {
-  identify: (context: LDContext) => Promise<void>;
+  identify: (context: LDContext) => Promise<LDFlagSet>;
 }
 
 // Global reference to LaunchDarkly client for use in actions like signOut
@@ -69,6 +69,16 @@ export const useAuthStore = create<AuthState>()(
               const updatedUser = await updateProfile(token, profileData);
               set({ user: updatedUser });
               
+              // Update LaunchDarkly context with user info
+              if (ldClientInstance && updatedUser) {
+                ldClientInstance.identify({
+                  kind: 'user',
+                  key: updatedUser.id,
+                  email: updatedUser.email,
+                  anonymous: false,
+                });
+              }
+              
               // Save the email for login consistency
               sessionStorage.setItem('lastDemoEmail', email);
             } catch (error: unknown) {
@@ -85,6 +95,16 @@ export const useAuthStore = create<AuthState>()(
           const token = await apiLogin(email, password);
           const user = await getProfile(token);
           set({ user, token });
+          
+          // Update LaunchDarkly context with user info
+          if (ldClientInstance && user) {
+            ldClientInstance.identify({
+              kind: 'user',
+              key: user.id,
+              email: user.email,
+              anonymous: false,
+            });
+          }
         } catch (error: unknown) {
           console.error('Login error:', error);
           throw error;
@@ -108,6 +128,16 @@ export const useAuthStore = create<AuthState>()(
         try {
           const updatedUser = await updateProfile(token, data);
           set({ user: updatedUser });
+          
+          // Update LaunchDarkly context with updated user info
+          if (ldClientInstance && updatedUser) {
+            ldClientInstance.identify({
+              kind: 'user',
+              key: updatedUser.id,
+              email: updatedUser.email,
+              anonymous: false,
+            });
+          }
         } catch (error: unknown) {
           console.error('Update profile error:', error);
           throw error;
@@ -122,6 +152,16 @@ export const useAuthStore = create<AuthState>()(
         try {
           const user = await getProfile(token);
           set({ user, isLoading: false });
+          
+          // Update LaunchDarkly context with user info when profile is fetched
+          if (ldClientInstance && user) {
+            ldClientInstance.identify({
+              kind: 'user',
+              key: user.id,
+              email: user.email,
+              anonymous: false,
+            });
+          }
         } catch (error: unknown) {
           console.error('Fetch profile error:', error);
           set({ isLoading: false });

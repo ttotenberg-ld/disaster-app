@@ -1,11 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
-import { LogOut } from 'lucide-react';
+import { LogOut, LayoutDashboard, User } from 'lucide-react';
 import Logo from './Logo';
+import { useTheme } from './ThemeProvider';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, signOut } = useAuthStore();
+  const { applyThemeClass } = useTheme();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -20,7 +22,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <div className="flex items-center">
               {user ? (
                 <div className="flex items-center space-x-4">
-                  <Link to="/profile" className="text-gray-700 hover:text-gray-900">
+                  <Link 
+                    to="/dashboard" 
+                    className="flex items-center text-gray-700 hover:text-gray-900"
+                  >
+                    <LayoutDashboard className="w-4 h-4 mr-1" />
+                    Dashboard
+                  </Link>
+                  <Link 
+                    to="/profile" 
+                    className="flex items-center text-gray-700 hover:text-gray-900"
+                  >
+                    <User className="w-4 h-4 mr-1" />
                     Profile
                   </Link>
                   <button
@@ -41,7 +54,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   </Link>
                   <Link
                     to="/signup"
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                    className={`${applyThemeClass()} text-white px-4 py-2 rounded-md hover:opacity-90`}
                   >
                     Sign Up
                   </Link>
