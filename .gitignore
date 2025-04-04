@@ -80,3 +80,7 @@ $RECYCLE.BIN/
 # Local development
 *.log
 .cache/
+
+
+.cursor
+mcp.json
