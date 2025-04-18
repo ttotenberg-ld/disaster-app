@@ -84,3 +84,6 @@ $RECYCLE.BIN/
 
 .cursor
 mcp.json
+
+test-results/
+playwright-report/

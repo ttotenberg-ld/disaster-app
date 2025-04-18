@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highlight Test</title>
+    <script type="text/javascript">
+        !function(h,i,g,h,l,i,g,h,t){if(window.H)return;window.highlight={};
+        highlight.identify=function(i,c){highlight.identity=i;highlight.traits=c||{};};
+        highlight.track=function(n,p){highlight.events=highlight.events||[];highlight.events.push({name:n,props:p});};
+        highlight.load=function(t,u){var e=i.getElementsByTagName(g)[0],n=i.createElement(g);
+        n.async=!0;n.src="https://snippet.highlight.run/v1/"+t+"/snippet.js";e.parentNode.insertBefore(n,e);};
+        highlight.load("4d7y25qd");
+        h="highlight";i=document;g="script";l=window;
+        }();
+    </script>
+</head>
+<body>
+    <h1>Testing Highlight Session Recording</h1>
+    <p>This is a simple test page to check if Highlight sessions appear in the dashboard.</p>
+    
+    <form id="login-form">
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" autocomplete="off">
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" autocomplete="off">
+        </div>
+        <button type="submit">Log In</button>
+    </form>
+
+    <script>
+        // Generate a unique session ID
+        const sessionId = 'manual-test-' + Date.now();
+        
+        // Add some random mouse movements
+        document.addEventListener('mousemove', function(e) {
+            // We don't need to do anything here, just capture the events
+            console.log('Mouse moved');
+        });
+        
+        // Handle form submission
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            
+            // Log in the user with Highlight
+            highlight.identify(email, {
+                id: sessionId,
+                source: 'manual-test',
+                timestamp: new Date().toISOString()
+            });
+            
+            // Track the login event
+            highlight.track('User Logged In', {
+                email: email,
+                timestamp: new Date().toISOString()
+            });
+            
+            alert('Login simulated! Check Highlight dashboard for session.');
+        });
+        
+        // Fill in the form after a short delay to simulate user interaction
+        setTimeout(() => {
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            
+            // Simulate typing
+            const email = 'test@example.com';
+            let i = 0;
+            
+            function typeCharacter() {
+                if (i < email.length) {
+                    emailInput.value += email[i];
+                    i++;
+                    setTimeout(typeCharacter, 100 + Math.random() * 200);
+                } else {
+                    // Now type the password
+                    passwordInput.value = 'password123';
+                    
+                    // Submit the form after a short delay
+                    setTimeout(() => {
+                        document.querySelector('button[type="submit"]').click();
+                    }, 1000);
+                }
+            }
+            
+            typeCharacter();
+        }, 2000);
+    </script>
+</body>
+</html> 
