@@ -15,18 +15,17 @@ const DEFAULT_FALLBACK_LOGO_URL = 'https://img.logo.dev/launchdarkly.com?token=p
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, signOut } = useAuthStore();
-  // Get state and actions from the branding store
   const {
     logoUrl,
     primaryColor,
     contrastColor,
-    loadInitialBranding,
+    // loadInitialBranding, // REMOVE: No longer called here
   } = useBrandingStore();
 
-  // Load initial branding from localStorage into the store on mount
-  useEffect(() => {
-    loadInitialBranding();
-  }, [loadInitialBranding]);
+  // REMOVE useEffect that called loadInitialBranding
+  // useEffect(() => {
+  //   loadInitialBranding();
+  // }, [loadInitialBranding]);
 
   // Effect to update CSS variables when store colors change
   useEffect(() => {

@@ -59,11 +59,11 @@ async def run_playwright_test(test_id: str, logo_url: Optional[str], primary_col
     try:
         # Set environment variables for the test process
         env = os.environ.copy()
-        env["CI"] = "true"
+        # env["CI"] = "true" # Temporarily disable forcing CI/headless mode
         if logo_url: env["BRAND_LOGO_URL"] = logo_url
         if primary_color: env["BRAND_PRIMARY_COLOR"] = primary_color
 
-        logger.info(f"[{test_id}] Setting env vars: BRAND_LOGO_URL={'present' if logo_url else 'not set'}, BRAND_PRIMARY_COLOR={'present' if primary_color else 'not set'}")
+        logger.info(f"[{test_id}] Setting env vars: CI={'true' if 'CI' in env else 'false'}, BRAND_LOGO_URL={'present' if logo_url else 'not set'}, BRAND_PRIMARY_COLOR={'present' if primary_color else 'not set'}")
 
         process = await asyncio.create_subprocess_exec(
             *command,
