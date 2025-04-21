@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, X } from 'lucide-react';
 import { withLDConsumer } from 'launchdarkly-react-client-sdk';
 import { LDFlagSet } from 'launchdarkly-js-client-sdk';
-import { useTheme } from './ThemeProvider';
 import { Link } from 'react-router-dom';
 
 // Define available plans
@@ -75,7 +74,6 @@ interface PricingPlansProps {
 }
 
 const PricingPlansComponent: React.FC<PricingPlansProps> = ({ onSelectPlan, flags = {} }) => {
-  const { applyThemeClass } = useTheme();
   const [plans, setPlans] = useState([...defaultPlans]);
   
   // Update plans based on flags
@@ -120,12 +118,19 @@ const PricingPlansComponent: React.FC<PricingPlansProps> = ({ onSelectPlan, flag
           {plans.map((plan) => (
             <div
               key={plan.id}
+              style={plan.popular ? { borderColor: 'var(--brand-primary-color)' } : {}}
               className={`border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200 flex flex-col ${
-                plan.popular ? 'border-2 border-blue-500' : ''
+                plan.popular ? 'border-2' : ''
               }`}
             >
               {plan.popular && (
-                <div className={`${applyThemeClass()} py-1 text-sm text-white text-center font-semibold rounded-t-lg`}>
+                <div 
+                  style={{
+                    backgroundColor: 'var(--brand-primary-color)',
+                    color: 'var(--brand-contrast-color)'
+                  }}
+                  className={`py-1 text-sm text-center font-semibold rounded-t-lg`}
+                >
                   Most Popular
                 </div>
               )}
@@ -139,7 +144,11 @@ const PricingPlansComponent: React.FC<PricingPlansProps> = ({ onSelectPlan, flag
                 <Link
                   to="/payment"
                   onClick={() => handleSelectPlan(plan)}
-                  className={`mt-6 block w-full ${applyThemeClass()} text-white py-2 px-4 rounded-md text-sm font-medium text-center`}
+                  style={{
+                    backgroundColor: 'var(--brand-primary-color)',
+                    color: 'var(--brand-contrast-color)'
+                  }}
+                  className={`mt-6 block w-full py-2 px-4 rounded-md text-sm font-medium text-center hover:opacity-90`}
                   state={{ selectedPlan: plan }}
                 >
                   {plan.price === 0 ? 'Get Started' : 'Subscribe Now'}

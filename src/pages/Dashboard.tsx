@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import InviteFriend from '../components/InviteFriend';
-import { useTheme } from '../components/ThemeProvider';
 import { withLDConsumer, useLDClient } from 'launchdarkly-react-client-sdk';
 import { LDFlagSet } from 'launchdarkly-js-client-sdk';
 import { Users, CreditCard, ArrowUp, Gift, Activity } from 'lucide-react';
@@ -23,7 +22,6 @@ interface DashboardCard {
 const Dashboard = ({ flags }: DashboardProps) => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const { applyThemeClass } = useTheme();
   const ldClient = useLDClient();
   
   const [stats, setStats] = useState({
@@ -170,7 +168,13 @@ const Dashboard = ({ flags }: DashboardProps) => {
             <div key={index} className="bg-white overflow-hidden shadow rounded-lg">
               <div className="p-5">
                 <div className="flex items-center">
-                  <div className={`flex-shrink-0 ${applyThemeClass()} rounded-md p-3`}>
+                  <div 
+                    style={{
+                      backgroundColor: 'var(--brand-primary-color)',
+                      color: 'var(--brand-contrast-color)'
+                    }}
+                    className={`flex-shrink-0 rounded-md p-3`}
+                  >
                     {card.icon}
                   </div>
                   <div className="ml-5 w-0 flex-1">

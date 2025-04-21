@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { withLDConsumer, useLDClient } from 'launchdarkly-react-client-sdk';
 import { LDFlagSet } from 'launchdarkly-js-client-sdk';
-import { useTheme } from './ThemeProvider';
 import { Gift, Users, X } from 'lucide-react';
 
 type InviteFriendProps = {
@@ -13,7 +12,6 @@ const InviteFriend = ({ flags = {} }: InviteFriendProps) => {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { applyThemeClass } = useTheme();
   const ldClient = useLDClient();
   
   // Store flag values in state so we can track when they change
@@ -141,7 +139,7 @@ const InviteFriend = ({ flags = {} }: InviteFriendProps) => {
   const getInviteCardContent = () => (
     <div className="p-4">
       <div className="flex items-center mb-4">
-        <Gift className={`h-6 w-6 ${applyThemeClass('500')}`} />
+        <Gift className={`h-6 w-6 text-gray-600`} />
         <h3 className="ml-2 text-lg font-semibold text-gray-900">
           {getHeadline()}
         </h3>
@@ -169,8 +167,12 @@ const InviteFriend = ({ flags = {} }: InviteFriendProps) => {
             {error && <p className="text-xs text-red-600">{error}</p>}
             <button
               type="submit"
-              className={`${applyThemeClass()} text-white px-4 py-2 rounded-md text-sm font-medium ${
-                loading ? 'opacity-70 cursor-not-allowed' : ''
+              style={{
+                backgroundColor: 'var(--brand-primary-color)',
+                color: 'var(--brand-contrast-color)'
+              }}
+              className={`px-4 py-2 rounded-md text-sm font-medium ${
+                loading ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'
               }`}
               disabled={loading}
             >

@@ -119,7 +119,11 @@ export const SignUp = () => {
         <div className="flex items-center justify-between">
           <button
             type="submit"
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
+            style={{
+              backgroundColor: 'var(--brand-primary-color)',
+              color: 'var(--brand-contrast-color)'
+            }}
+            className="font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full hover:opacity-90 disabled:opacity-50"
             disabled={loading}
           >
             {loading ? 'Signing up...' : 'Sign Up'}

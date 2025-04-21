@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useTheme } from '../components/ThemeProvider';
 import { useFlags } from 'launchdarkly-react-client-sdk';
 import { Plan } from '../components/PricingPlans';
 import { CreditCard, Lock } from 'lucide-react';
@@ -9,7 +8,6 @@ import { useAuthStore } from '../store/auth';
 const Payment = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { applyThemeClass } = useTheme();
   const flags = useFlags();
   const { user } = useAuthStore();
   
@@ -109,7 +107,11 @@ const Payment = () => {
           <div className="mt-6">
             <button
               onClick={() => navigate('/', { state: { scrollToPricing: true } })}
-              className={`${applyThemeClass()} px-4 py-2 rounded-md text-white`}
+              style={{
+                backgroundColor: 'var(--brand-primary-color)',
+                color: 'var(--brand-contrast-color)'
+              }}
+              className={`px-4 py-2 rounded-md hover:opacity-90`}
             >
               View Pricing
             </button>
@@ -383,9 +385,13 @@ const Payment = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-3 px-4 rounded-md shadow-sm text-white font-medium ${
-                    loading ? 'opacity-70 cursor-not-allowed' : ''
-                  } ${applyThemeClass()}`}
+                  style={{
+                    backgroundColor: 'var(--brand-primary-color)',
+                    color: 'var(--brand-contrast-color)'
+                  }}
+                  className={`w-full py-3 px-4 rounded-md shadow-sm font-medium ${
+                    loading ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'
+                  }`}
                 >
                   {loading ? 'Processing...' : `Pay $${selectedPlan.price}`}
                 </button>

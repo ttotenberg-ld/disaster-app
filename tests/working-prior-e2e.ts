@@ -5,27 +5,8 @@ import {
   shutdownHighlight 
 } from './highlightHelper';
 
-// Default branding values (used if environment variables are not set)
-const DEFAULT_BRAND_LOGO = 'https://img.logo.dev/launchdarkly.com?token=pk_CV1Cwkm5RDmroDFjScYQRA';
-const DEFAULT_BRAND_COLOR = '#000000';
-
 // Comprehensive end-to-end test that covers signup, navigation, and payment flow
 test('end-to-end user flow with realistic interaction', async ({ page, context }) => {
-  // Read branding from environment variables passed by test-runner-api
-  const logoUrl = process.env.BRAND_LOGO_URL || DEFAULT_BRAND_LOGO;
-  const primaryColor = process.env.BRAND_PRIMARY_COLOR || DEFAULT_BRAND_COLOR;
-  // const domain = process.env.BRAND_DOMAIN || 'default.com'; // If domain is needed later
-
-  console.log(`[Test] Using Branding - Logo: ${logoUrl}, Color: ${primaryColor}`);
-
-  // Inject branding into localStorage BEFORE the page loads
-  await page.addInitScript((branding) => {
-    console.log('[InitScript] Setting localStorage:', branding);
-    window.localStorage.setItem('demoBrandLogo', branding.logoUrl);
-    window.localStorage.setItem('demoBrandColor', branding.primaryColor);
-    // window.localStorage.setItem('demoBrandDomain', branding.domain);
-  }, { logoUrl, primaryColor /*, domain */ });
-
   // Add overall timeout handling
   let testCompleted = false;
   
@@ -66,9 +47,8 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     const testPassword = 'SecureP@ss' + Math.floor(Math.random() * 1000);
     const testId = Date.now().toString();
     
-    // 1. Start on the home page (Branding should be applied automatically)
+    // 1. Start on the home page
     await page.goto('/');
-    await page.waitForURL('/', { timeout: 10000 }); // Wait for homepage
     
     // Wait for the app to render - look for some expected content
     await page.waitForSelector('body', { timeout: 5000 });

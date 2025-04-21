@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import InviteFriend from '../components/InviteFriend';
-import { useTheme } from '../components/ThemeProvider';
 
 export const Profile = () => {
   const { user, updateProfile } = useAuthStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { applyThemeClass } = useTheme();
   const [profile, setProfile] = useState({
     fullName: user?.fullName || '',
     username: user?.username || '',
@@ -124,9 +122,13 @@ export const Profile = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
-                        loading ? 'opacity-70' : ''
-                      } ${applyThemeClass()} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+                      style={{
+                        backgroundColor: 'var(--brand-primary-color)',
+                        color: 'var(--brand-contrast-color)'
+                      }}
+                      className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm ${
+                        loading ? 'opacity-70' : 'hover:opacity-90'
+                      } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
                     >
                       {loading ? 'Saving...' : 'Save'}
                     </button>

@@ -1,13 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { LogOut, LayoutDashboard, User } from 'lucide-react';
 import Logo from './Logo';
-import { useTheme } from './ThemeProvider';
+import { getContrastColor } from '../lib/colorUtils'; // Re-enable this import
+
+// const CONFIG_API_BASE_URL = 'http://localhost:8001/api'; // No longer needed
+
+// Defaults if localStorage is empty
+const DEFAULT_BRAND_COLOR = '#000000';
+// const DEFAULT_CONTRAST_COLOR = '#FFFFFF'; // No longer needed
+const DEFAULT_FALLBACK_LOGO_URL = 'https://img.logo.dev/launchdarkly.com?token=pk_CV1Cwkm5RDmroDFjScYQRA';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, signOut } = useAuthStore();
-  const { applyThemeClass } = useTheme();
+  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(DEFAULT_FALLBACK_LOGO_URL);
+
+  // Read from localStorage on mount
+  useEffect(() => {
+    const storedLogo = localStorage.getItem('demoBrandLogo');
+    const storedColor = localStorage.getItem('demoBrandColor');
+
+    const primaryColor = storedColor || DEFAULT_BRAND_COLOR;
+    const contrastColor = getContrastColor(primaryColor);
+    const logoUrl = storedLogo || DEFAULT_FALLBACK_LOGO_URL;
+
+    setBrandLogoUrl(logoUrl);
+    document.documentElement.style.setProperty('--brand-primary-color', primaryColor);
+    document.documentElement.style.setProperty('--brand-contrast-color', contrastColor);
+    console.log('Layout applied branding from localStorage:', primaryColor, contrastColor);
+
+    // Optional: Add listener for storage changes if needed elsewhere
+    // const handleStorageChange = () => { /* re-read localStorage */ };
+    // window.addEventListener('storage', handleStorageChange);
+
+    // Cleanup CSS variables on unmount (optional)
+    return () => {
+      // window.removeEventListener('storage', handleStorageChange);
+      // document.documentElement.style.removeProperty('--brand-primary-color');
+      // document.documentElement.style.removeProperty('--brand-contrast-color');
+    };
+  }, []); // Run only once on mount
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -16,7 +49,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="flex justify-between h-16">
             <div className="flex">
               <Link to="/" className="flex items-center">
-                <Logo />
+                <Logo overrideSrc={brandLogoUrl} />
               </Link>
             </div>
             <div className="flex items-center">
@@ -54,7 +87,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   </Link>
                   <Link
                     to="/signup"
-                    className={`${applyThemeClass()} text-white px-4 py-2 rounded-md hover:opacity-90`}
+                    style={{
+                      backgroundColor: 'var(--brand-primary-color)',
+                      color: 'var(--brand-contrast-color)'
+                    }}
+                    className={`px-4 py-2 rounded-md hover:opacity-90`}
                   >
                     Sign Up
                   </Link>

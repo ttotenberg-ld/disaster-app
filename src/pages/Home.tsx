@@ -2,11 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, RefreshCw } from 'lucide-react';
 import { PricingPlans } from '../components/PricingPlans';
-import { useTheme } from '../components/ThemeProvider';
 
 export const Home = () => {
   const location = useLocation();
-  const { applyThemeClass } = useTheme();
   const pricingRef = useRef<HTMLDivElement>(null);
   
   // Scroll to pricing if state indicates to do so
@@ -33,7 +31,11 @@ export const Home = () => {
                 <div className="rounded-md shadow">
                   <Link
                     to="/signup"
-                    className={`w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white ${applyThemeClass()} md:py-4 md:text-lg md:px-10`}
+                    style={{
+                      backgroundColor: 'var(--brand-primary-color)',
+                      color: 'var(--brand-contrast-color)'
+                    }}
+                    className={`w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md md:py-4 md:text-lg md:px-10 hover:opacity-90`}
                   >
                     Get started
                     <ArrowRight className="ml-2 w-5 h-5" />
@@ -52,7 +54,13 @@ export const Home = () => {
           </div>
           <dl className="mt-12 space-y-10 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-8">
             <div className="flex flex-col items-center">
-              <div className={`flex items-center justify-center h-12 w-12 rounded-md ${applyThemeClass()} text-white`}>
+              <div 
+                style={{
+                  backgroundColor: 'var(--brand-primary-color)',
+                  color: 'var(--brand-contrast-color)'
+                }}
+                className={`flex items-center justify-center h-12 w-12 rounded-md`}
+              >
                 <Shield className="h-6 w-6" />
               </div>
               <dt className="mt-5 text-lg leading-6 font-medium text-gray-900">Secure by design</dt>
@@ -62,7 +70,13 @@ export const Home = () => {
             </div>
 
             <div className="flex flex-col items-center">
-              <div className={`flex items-center justify-center h-12 w-12 rounded-md ${applyThemeClass()} text-white`}>
+              <div 
+                style={{
+                  backgroundColor: 'var(--brand-primary-color)',
+                  color: 'var(--brand-contrast-color)'
+                }}
+                className={`flex items-center justify-center h-12 w-12 rounded-md`}
+               >
                 <Zap className="h-6 w-6" />
               </div>
               <dt className="mt-5 text-lg leading-6 font-medium text-gray-900">Lightning fast</dt>
@@ -72,7 +86,13 @@ export const Home = () => {
             </div>
 
             <div className="flex flex-col items-center">
-              <div className={`flex items-center justify-center h-12 w-12 rounded-md ${applyThemeClass()} text-white`}>
+              <div 
+                style={{
+                  backgroundColor: 'var(--brand-primary-color)',
+                  color: 'var(--brand-contrast-color)'
+                }}
+                className={`flex items-center justify-center h-12 w-12 rounded-md`}
+              >
                 <RefreshCw className="h-6 w-6" />
               </div>
               <dt className="mt-5 text-lg leading-6 font-medium text-gray-900">Always up to date</dt>

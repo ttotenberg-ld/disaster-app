@@ -64,6 +64,21 @@ backend/*.egg
 backend/app.db
 backend/.env
 
+# Config API specific
+config-api/venv/
+config-api/__pycache__/
+config-api/**/__pycache__/
+config-api/current_branding.json
+
+# Test Runner API specific
+test-runner-api/venv/
+test-runner-api/__pycache__/
+test-runner-api/**/__pycache__/
+
+# Python Caches (General)
+.pytest_cache/
+**/.pytest_cache/
+
 # IDE specific files
 .idea/
 .vscode/

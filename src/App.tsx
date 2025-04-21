@@ -7,6 +7,7 @@ import { Home } from './pages/Home';
 import { SignUp } from './pages/SignUp';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
+import ConfigurationPage from './pages/ConfigurationPage';
 import { useAuthStore, setLDClient } from './store/auth';
 import { initializeHighlight } from './lib/highlight';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -55,6 +56,7 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/payment" element={<Payment />} />
+                <Route path="/config" element={<ConfigurationPage />} />
               </Routes>
             </Suspense>
           </Layout>
