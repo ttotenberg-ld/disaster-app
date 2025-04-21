@@ -1,53 +1,51 @@
 import { create } from 'zustand';
 import { getContrastColor } from '../lib/colorUtils';
 
-// Defaults used if localStorage is empty or on error
+// Defaults
 const DEFAULT_BRAND_COLOR = '#000000';
-// const DEFAULT_CONTRAST_COLOR = '#FFFFFF'; // Removed unused
 const DEFAULT_FALLBACK_LOGO_URL = 'https://img.logo.dev/launchdarkly.com?token=pk_CV1Cwkm5RDmroDFjScYQRA';
 const DEFAULT_DOMAIN = 'launchdarkly.com';
+// Calculate default contrast based on default color
+const DEFAULT_CONTRAST_COLOR = getContrastColor(DEFAULT_BRAND_COLOR);
 
 interface BrandingState {
-  logoUrl: string | null;
-  primaryColor: string | null;
-  contrastColor: string | null;
-  domain: string | null;
+  logoUrl: string; // No longer null initially
+  primaryColor: string; // No longer null initially
+  contrastColor: string; // No longer null initially
+  domain: string; // No longer null initially
+  // isInitialized: boolean; // Removed
   applyBranding: (details: { logoUrl: string; primaryColor: string; domain: string }) => void;
   loadInitialBranding: () => void;
 }
 
 export const useBrandingStore = create<BrandingState>((set) => ({
-  // Initial state
-  logoUrl: null,
-  primaryColor: null,
-  contrastColor: null,
-  domain: null,
+  // Initial state set to defaults
+  logoUrl: DEFAULT_FALLBACK_LOGO_URL,
+  primaryColor: DEFAULT_BRAND_COLOR,
+  contrastColor: DEFAULT_CONTRAST_COLOR,
+  domain: DEFAULT_DOMAIN,
+  // isInitialized: false, // Removed
 
   // Action to apply new branding
   applyBranding: (details) => {
     try {
       const contrast = getContrastColor(details.primaryColor);
-      
-      // Save to localStorage for persistence
       localStorage.setItem('demoBrandLogo', details.logoUrl);
       localStorage.setItem('demoBrandColor', details.primaryColor);
       localStorage.setItem('demoBrandDomain', details.domain);
-      console.log('Saved branding to localStorage', details);
-
-      // Update store state
       set({
         logoUrl: details.logoUrl,
         primaryColor: details.primaryColor,
         contrastColor: contrast,
         domain: details.domain,
+        // isInitialized: true // Removed
       });
     } catch (error) {
-        console.error("Error applying branding:", error);
-        // Optionally revert to defaults or handle error state
+      console.error("Error applying branding:", error);
     }
   },
 
-  // Action to load initial state from localStorage
+  // Action to load initial state from localStorage (overwrites defaults if found)
   loadInitialBranding: () => {
       try {
         const storedLogo = localStorage.getItem('demoBrandLogo');
@@ -61,29 +59,29 @@ export const useBrandingStore = create<BrandingState>((set) => ({
                 primaryColor: storedColor,
                 contrastColor: contrast,
                 domain: storedDomain,
+                // isInitialized: true // Removed
             });
             console.log('Initialized branding store from localStorage');
         } else {
-             // If not fully set in localStorage, initialize with defaults
-             console.log('No complete branding in localStorage, initializing store with defaults.');
-             const defaultContrast = getContrastColor(DEFAULT_BRAND_COLOR);
-              set({
-                logoUrl: DEFAULT_FALLBACK_LOGO_URL,
-                primaryColor: DEFAULT_BRAND_COLOR,
-                contrastColor: defaultContrast,
-                domain: DEFAULT_DOMAIN,
-            });
+             // If not found, the initial default state is already set
+             console.log('No complete branding in localStorage, using initial defaults.');
+             // No need to set defaults again here
         }
       } catch (error) {
           console.error("Error loading initial branding:", error);
-           // Fallback to defaults on error
-           const defaultContrast = getContrastColor(DEFAULT_BRAND_COLOR);
-            set({
-                logoUrl: DEFAULT_FALLBACK_LOGO_URL,
-                primaryColor: DEFAULT_BRAND_COLOR,
-                contrastColor: defaultContrast,
-                domain: DEFAULT_DOMAIN,
-            });
+           // If error, the initial default state remains
       }
   },
-})); 
+}));
+
+// Define a type for the window object including our custom function
+interface WindowWithBrandingStore extends Window {
+  useBrandingStore?: typeof useBrandingStore;
+}
+
+// Expose the whole store hook to the window object FOR TESTING ONLY
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  // Cast to our extended window type
+  (window as WindowWithBrandingStore).useBrandingStore = useBrandingStore;
+  console.log('Attached useBrandingStore to window for testing.');
+} 

@@ -4,9 +4,9 @@ import { withLDProvider } from 'launchdarkly-react-client-sdk';
 import App from './App.tsx';
 import './index.css';
 import { CLIENT_SIDE_ID, getDefaultContext } from './lib/launchdarkly';
-import { useBrandingStore } from './store/branding';
+import { useBrandingStore } from './store/branding'; // Ensure this is imported
 
-// Initialize the branding store from localStorage BEFORE rendering the app
+// Re-add the branding store initialization call
 useBrandingStore.getState().loadInitialBranding();
 
 // Wrap the App component with LaunchDarkly

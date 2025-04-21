@@ -9,26 +9,36 @@ import {
 const DEFAULT_BRAND_LOGO = 'https://img.logo.dev/launchdarkly.com?token=pk_CV1Cwkm5RDmroDFjScYQRA';
 const DEFAULT_BRAND_COLOR = '#000000';
 
+// Helper function to convert hex to rgb string for CSS verification
+function hexToRgb(hex: string): string | null {
+    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+        ? `rgb(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)})`
+        : null;
+}
+
+// Declare the window type extension locally for the test
+interface MinimalBrandingStore {
+    getState: () => {
+        applyBranding: (details: { logoUrl: string; primaryColor: string; domain: string; }) => void;
+    };
+}
+interface WindowWithBrandingStore extends Window {
+  useBrandingStore?: MinimalBrandingStore; // Use the minimal type
+}
+
 // Comprehensive end-to-end test that covers signup, navigation, and payment flow
 test('end-to-end user flow with realistic interaction', async ({ page, context }) => {
-  // Read branding from environment variables passed by test-runner-api
+  // Read branding from environment variables
   const logoUrl = process.env.BRAND_LOGO_URL || DEFAULT_BRAND_LOGO;
   const primaryColor = process.env.BRAND_PRIMARY_COLOR || DEFAULT_BRAND_COLOR;
-  // const domain = process.env.BRAND_DOMAIN || 'default.com'; // If domain is needed later
+  const domain = 'test-domain.com'; // Domain needed for applyBranding, use placeholder
 
   console.log(`[Test] Using Branding - Logo: ${logoUrl}, Color: ${primaryColor}`);
-
-  // Inject branding into localStorage BEFORE the page loads
-  await page.addInitScript((branding) => {
-    console.log('[InitScript] Setting localStorage:', branding);
-    window.localStorage.setItem('demoBrandLogo', branding.logoUrl);
-    window.localStorage.setItem('demoBrandColor', branding.primaryColor);
-    // window.localStorage.setItem('demoBrandDomain', branding.domain);
-  }, { logoUrl, primaryColor /*, domain */ });
-
-  // Add a very brief pause AFTER adding the init script but BEFORE navigating
-  // This can sometimes help ensure the script context is fully ready.
-  await page.waitForTimeout(100); 
 
   // Add overall timeout handling
   let testCompleted = false;
@@ -70,14 +80,45 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     const testPassword = 'SecureP@ss' + Math.floor(Math.random() * 1000);
     const testId = Date.now().toString();
     
-    // 1. Start on the home page (Branding should be applied automatically)
+    // 1. Start on the home page (Will initially load with defaults)
     await page.goto('/');
     await page.waitForURL('/', { timeout: 10000 });
+
+    // Wait for page to load (e.g., wait for button)
+    const getStartedButton = page.locator('main a[href="/signup"]:has-text("Get started")');
+    await getStartedButton.waitFor({ state: 'visible', timeout: 15000 });
+
+    // *** APPLY BRANDING VIA STORE ACTION ***
+    console.log('[Test] Evaluating script to call applyBranding store action...');
+    await page.evaluate((brandingArgs) => {
+        const testWindow = window as WindowWithBrandingStore;
+        if (testWindow.useBrandingStore) {
+             // Call should now be type-safe based on MinimalBrandingStore
+             testWindow.useBrandingStore.getState().applyBranding(brandingArgs);
+             console.log('[Evaluate] applyBranding called with:', brandingArgs);
+        } else {
+             console.error('[Evaluate] useBrandingStore not found on window!');
+        }
+    }, { logoUrl, primaryColor, domain }); // Pass data as argument
+
+    // Add a pause for React re-render and CSS application
+    await page.waitForTimeout(500);
+    console.log('[Test] Paused briefly after triggering branding update.');
+    // *** END APPLY BRANDING ***
+
+    // *** VERIFICATION STEP: Wait for CSS to be applied ***
+    console.log(`[Test] Verifying CSS for primaryColor: ${primaryColor}`);
+    const expectedRgbColor = hexToRgb(primaryColor);
+
+    if (expectedRgbColor) {
+        await expect(getStartedButton).toHaveCSS('background-color', expectedRgbColor, { timeout: 10000 });
+        console.log(`[Test] CSS background-color verified: ${expectedRgbColor}`);
+    } else {
+         console.warn(`[Test] Could not verify CSS, invalid hex color format: ${primaryColor}`);
+    }
+    // *** END VERIFICATION STEP ***
     
-    // Wait for the app to render
-    await page.waitForSelector('body', { timeout: 7000 });
-    
-    // *** DIAGNOSTIC STEP: Check localStorage after load ***
+    // *** DIAGNOSTIC STEP: Check localStorage after load (can likely remove later) ***
     const storedLogo = await page.evaluate(() => window.localStorage.getItem('demoBrandLogo'));
     const storedColor = await page.evaluate(() => window.localStorage.getItem('demoBrandColor'));
     console.log(`[Test] localStorage check - Logo: ${storedLogo}, Color: ${storedColor}`);
@@ -286,6 +327,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     testCompleted = true;
   } catch (error) {
     console.error('Unhandled error in E2E test:', error);
+    // Add screenshot on general error
+    await page.screenshot({ path: 'test-results/e2e-error.png', fullPage: true }); 
+    throw error; // Re-throw error to ensure test fails
   } finally {
     // Clear the timeout
     clearTimeout(testTimeout);

@@ -19,7 +19,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     logoUrl,
     primaryColor,
     contrastColor,
-    // loadInitialBranding, // REMOVE: No longer called here
+    // isInitialized, // REMOVE: No longer needed
   } = useBrandingStore();
 
   // REMOVE useEffect that called loadInitialBranding
@@ -29,20 +29,22 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   // Effect to update CSS variables when store colors change
   useEffect(() => {
+    // Use store values directly, defaults handled in store initial state
     const effectivePrimary = primaryColor || DEFAULT_BRAND_COLOR;
-    // Contrast color is calculated in the store, use it directly or default
-    const effectiveContrast = contrastColor || '#FFFFFF'; 
+    const effectiveContrast = contrastColor || '#FFFFFF';
+
+    // Log what's being applied
+    console.log(`[Layout useEffect] Updating CSS - Primary: ${effectivePrimary}, Contrast: ${effectiveContrast}`);
 
     document.documentElement.style.setProperty('--brand-primary-color', effectivePrimary);
     document.documentElement.style.setProperty('--brand-contrast-color', effectiveContrast);
-    console.log('Layout updated CSS vars from store:', effectivePrimary, effectiveContrast);
 
     // Cleanup (optional)
     return () => {
-      // document.documentElement.style.removeProperty('--brand-primary-color');
-      // document.documentElement.style.removeProperty('--brand-contrast-color');
+      // ... remove properties ...
     };
-  }, [primaryColor, contrastColor]); // Re-run when store colors change
+  // Dependency array only includes the colors now
+  }, [primaryColor, contrastColor]); 
 
   return (
     <div className="min-h-screen bg-gray-50">
