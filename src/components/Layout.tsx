@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { LogOut, LayoutDashboard, User } from 'lucide-react';
 import Logo from './Logo';
-import { getContrastColor } from '../lib/colorUtils'; // Re-enable this import
+// import { getContrastColor } from '../lib/colorUtils'; // No longer needed directly here
+import { useBrandingStore } from '../store/branding'; // Import the new store hook
 
 // const CONFIG_API_BASE_URL = 'http://localhost:8001/api'; // No longer needed
 
@@ -14,33 +15,35 @@ const DEFAULT_FALLBACK_LOGO_URL = 'https://img.logo.dev/launchdarkly.com?token=p
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, signOut } = useAuthStore();
-  const [brandLogoUrl, setBrandLogoUrl] = useState<string | null>(DEFAULT_FALLBACK_LOGO_URL);
+  // Get state and actions from the branding store
+  const {
+    logoUrl,
+    primaryColor,
+    contrastColor,
+    loadInitialBranding,
+  } = useBrandingStore();
 
-  // Read from localStorage on mount
+  // Load initial branding from localStorage into the store on mount
   useEffect(() => {
-    const storedLogo = localStorage.getItem('demoBrandLogo');
-    const storedColor = localStorage.getItem('demoBrandColor');
+    loadInitialBranding();
+  }, [loadInitialBranding]);
 
-    const primaryColor = storedColor || DEFAULT_BRAND_COLOR;
-    const contrastColor = getContrastColor(primaryColor);
-    const logoUrl = storedLogo || DEFAULT_FALLBACK_LOGO_URL;
+  // Effect to update CSS variables when store colors change
+  useEffect(() => {
+    const effectivePrimary = primaryColor || DEFAULT_BRAND_COLOR;
+    // Contrast color is calculated in the store, use it directly or default
+    const effectiveContrast = contrastColor || '#FFFFFF'; 
 
-    setBrandLogoUrl(logoUrl);
-    document.documentElement.style.setProperty('--brand-primary-color', primaryColor);
-    document.documentElement.style.setProperty('--brand-contrast-color', contrastColor);
-    console.log('Layout applied branding from localStorage:', primaryColor, contrastColor);
+    document.documentElement.style.setProperty('--brand-primary-color', effectivePrimary);
+    document.documentElement.style.setProperty('--brand-contrast-color', effectiveContrast);
+    console.log('Layout updated CSS vars from store:', effectivePrimary, effectiveContrast);
 
-    // Optional: Add listener for storage changes if needed elsewhere
-    // const handleStorageChange = () => { /* re-read localStorage */ };
-    // window.addEventListener('storage', handleStorageChange);
-
-    // Cleanup CSS variables on unmount (optional)
+    // Cleanup (optional)
     return () => {
-      // window.removeEventListener('storage', handleStorageChange);
       // document.documentElement.style.removeProperty('--brand-primary-color');
       // document.documentElement.style.removeProperty('--brand-contrast-color');
     };
-  }, []); // Run only once on mount
+  }, [primaryColor, contrastColor]); // Re-run when store colors change
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -49,7 +52,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="flex justify-between h-16">
             <div className="flex">
               <Link to="/" className="flex items-center">
-                <Logo overrideSrc={brandLogoUrl} />
+                {/* Pass logoUrl from store, with fallback */}
+                <Logo overrideSrc={logoUrl || DEFAULT_FALLBACK_LOGO_URL} />
               </Link>
             </div>
             <div className="flex items-center">

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 // import { useNavigate } from 'react-router-dom'; // useNavigate might not be needed now
 import { debounce } from 'lodash';
-import { getContrastColor } from '../lib/colorUtils'; // Keep this import
+// import { getContrastColor } from '../lib/colorUtils'; // No longer needed here
+import { useBrandingStore } from '../store/branding'; // Import branding store
 
 const CONFIG_API_BASE_URL = 'http://localhost:8001/api';
 const TEST_RUNNER_API_BASE_URL = 'http://localhost:8002/api'; // New API base URL
@@ -12,14 +13,6 @@ interface BrandSearchResult {
     domain: string;
     logo_url: string;
     primaryColor?: string | null;
-}
-
-// Interface for currently applied branding state
-interface AppliedBranding {
-    logo: string | null;
-    color: string | null;
-    contrastColor: string | null;
-    domain: string | null;
 }
 
 interface TestStatus {
@@ -37,35 +30,20 @@ function ConfigurationPage() {
     // const [isLoadingDetails, setIsLoadingDetails] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null); // State for confirmation
-    const [appliedBranding, setAppliedBranding] = useState<AppliedBranding | null>(null);
-    // const [isLoadingBranding, setIsLoadingBranding] = useState(true); // Remove unused state
 
     // State for test running
     const [testStatus, setTestStatus] = useState<TestStatus>({ status: 'idle', message: null });
     const [testRunId, setTestRunId] = useState<string | null>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref for interval ID
 
-    // Load applied branding from localStorage on mount
-    const loadAppliedBranding = useCallback(() => {
-        const storedLogo = localStorage.getItem('demoBrandLogo');
-        const storedColor = localStorage.getItem('demoBrandColor');
-        const storedDomain = localStorage.getItem('demoBrandDomain'); 
-        if (storedLogo && storedColor && storedDomain) {
-            const contrast = getContrastColor(storedColor);
-            setAppliedBranding({
-                logo: storedLogo,
-                color: storedColor,
-                contrastColor: contrast,
-                domain: storedDomain
-            });
-        } else {
-            setAppliedBranding(null); // Clear if not fully set
-        }
-    }, []);
-
-    useEffect(() => {
-        loadAppliedBranding();
-    }, [loadAppliedBranding]);
+    // Get branding state and actions from the store
+    const {
+        logoUrl: appliedLogoUrl,
+        primaryColor: appliedPrimaryColor,
+        contrastColor: appliedContrastColor,
+        domain: appliedDomain,
+        applyBranding // Action to update branding
+    } = useBrandingStore();
 
     // Debounced search function
     const debouncedSearch = useCallback(
@@ -106,32 +84,25 @@ function ConfigurationPage() {
     // Remove handleSelectBrand function as it's no longer needed
     // const handleSelectBrand = async (brand) => { ... };
 
-    // Confirm branding saves to localStorage
+    // Confirm branding calls the store action
     const handleConfirmBranding = (brand: BrandSearchResult) => {
         if (brand && brand.logo_url && brand.primaryColor) {
-            // Save to localStorage
-            localStorage.setItem('demoBrandLogo', brand.logo_url);
-            localStorage.setItem('demoBrandColor', brand.primaryColor);
-            localStorage.setItem('demoBrandDomain', brand.domain);
-
-            // Update state to reflect change immediately
-            const contrast = getContrastColor(brand.primaryColor);
-            setAppliedBranding({
-                logo: brand.logo_url,
-                color: brand.primaryColor,
-                contrastColor: contrast,
+            // Call store action to update state and save to localStorage
+            applyBranding({
+                logoUrl: brand.logo_url,
+                primaryColor: brand.primaryColor,
                 domain: brand.domain
             });
 
             const message = `Branding updated for ${brand.name}!`;
             setConfirmationMessage(message);
-            console.log('Branding configured:', message);
+            console.log('Branding configured via store:', message);
             setTimeout(() => setConfirmationMessage(null), 5000);
 
             setSearchTerm(brand.name);
             setSearchResults([]);
         } else {
-            const errorMsg = 'Error: Could not apply branding - logo or color missing in selection.';
+            const errorMsg = 'Error: Could not apply branding - logo or color missing.';
             setConfirmationMessage(errorMsg);
             setTimeout(() => setConfirmationMessage(null), 5000);
         }
@@ -196,9 +167,10 @@ function ConfigurationPage() {
         };
     }, [testRunId, pollTestStatus]);
 
-    // Trigger test run, passing current branding details
+    // Trigger test run, reads applied branding details FROM THE STORE
     const handleRunTest = async () => {
-        if (!appliedBranding || !appliedBranding.logo || !appliedBranding.color) {
+        // Read directly from store state variables
+        if (!appliedLogoUrl || !appliedPrimaryColor) {
              setTestStatus({ status: 'error', message: 'Cannot run test: No branding applied yet.' });
              return;
         }
@@ -211,11 +183,9 @@ function ConfigurationPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                // Send current branding details in the body
                 body: JSON.stringify({
-                    logo_url: appliedBranding.logo,
-                    primaryColor: appliedBranding.color
-                    // Domain isn't strictly needed by the test itself currently
+                    logo_url: appliedLogoUrl, // Use store value
+                    primaryColor: appliedPrimaryColor // Use store value
                 })
             });
             if (!response.ok) {
@@ -236,36 +206,33 @@ function ConfigurationPage() {
         <div className="container mx-auto p-4 max-w-2xl">
             <h1 className="text-2xl font-bold mb-6">Configure Demo Branding</h1>
 
-            {/* Currently Applied Branding Section */} 
-            {appliedBranding ? (
+            {/* Currently Applied Branding Section (reads from store) */} 
+            {appliedLogoUrl ? (
                  <div className="mb-8 p-4 border border-gray-200 rounded-md bg-gray-50">
                     <h2 className="text-lg font-semibold mb-3 text-gray-800">Currently Applied Branding</h2>
                     <div className="flex items-center mb-3">
-                         {/* Ensure logo is not null before rendering img */} 
-                         {appliedBranding.logo && (
-                             <img 
-                                 src={appliedBranding.logo} 
-                                 alt="Current Logo" 
-                                 className="w-16 h-16 mr-4 object-contain border border-gray-100 p-1 bg-white" 
-                             />
-                         )}
+                         <img 
+                             src={appliedLogoUrl} // Use store value
+                             alt="Current Logo" 
+                             className="w-16 h-16 mr-4 object-contain border border-gray-100 p-1 bg-white" 
+                         />
                         <div>
-                            <p className="font-medium text-gray-900">{appliedBranding.domain || 'Unknown'}</p>
+                            <p className="font-medium text-gray-900">{appliedDomain || 'Unknown'}</p>
                             <div className="flex items-center mt-1">
                                 <p className="text-sm mr-2 text-gray-600">Primary:</p>
                                 <div
-                                    style={{ backgroundColor: appliedBranding.color || 'transparent' }} // Handle null color
+                                    style={{ backgroundColor: appliedPrimaryColor || 'transparent' }}
                                     className="w-5 h-5 rounded border border-gray-400 mr-1"
                                 ></div>
-                                <span className="text-sm font-mono text-gray-700">{appliedBranding.color || 'N/A'}</span>
+                                <span className="text-sm font-mono text-gray-700">{appliedPrimaryColor || 'N/A'}</span>
                             </div>
                             <div className="flex items-center mt-1">
                                 <p className="text-sm mr-2 text-gray-600">Contrast:</p>
                                  <div
-                                    style={{ backgroundColor: appliedBranding.contrastColor || 'transparent' }} // Handle null contrast
+                                    style={{ backgroundColor: appliedContrastColor || 'transparent' }}
                                     className="w-5 h-5 rounded border border-gray-400 mr-1"
                                 ></div>
-                                <span className="text-sm font-mono text-gray-700">{appliedBranding.contrastColor || 'N/A'}</span>
+                                <span className="text-sm font-mono text-gray-700">{appliedContrastColor || 'N/A'}</span>
                             </div>
                         </div>
                     </div>
