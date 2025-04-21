@@ -53,6 +53,8 @@ async def run_playwright_test(test_id: str, logo_url: Optional[str], primary_col
     logger.info(f"[{test_id}] Running command: {' '.join(command)} in {PROJECT_ROOT}")
 
     TEST_STATUSES[test_id]["status"] = "running"
+    TEST_STATUSES[test_id]["output"] = None # Initialize output
+    TEST_STATUSES[test_id]["error"] = None # Initialize error
 
     try:
         # Set environment variables for the test process
@@ -76,17 +78,23 @@ async def run_playwright_test(test_id: str, logo_url: Optional[str], primary_col
 
         stdout_str = stdout.decode().strip()
         stderr_str = stderr.decode().strip()
+        
+        # Always store stdout
+        TEST_STATUSES[test_id]["output"] = stdout_str
 
         if exit_code == 0:
             logger.info(f"[{test_id}] Test completed successfully.")
             TEST_STATUSES[test_id]["status"] = "success"
-            TEST_STATUSES[test_id]["output"] = stdout_str # Store output
+            # Output is already stored
         else:
             logger.error(f"[{test_id}] Test failed with exit code {exit_code}.")
+            logger.error(f"[{test_id}] STDOUT: {stdout_str}") # Log stdout on error too
             logger.error(f"[{test_id}] STDERR: {stderr_str}")
             TEST_STATUSES[test_id]["status"] = "error"
-            TEST_STATUSES[test_id]["error"] = stderr_str or "Test failed with non-zero exit code."
-            TEST_STATUSES[test_id]["output"] = stdout_str # Store output even on failure
+            # Prioritize stderr for error message, fallback to stdout if stderr is empty
+            error_message = stderr_str if stderr_str else stdout_str
+            TEST_STATUSES[test_id]["error"] = error_message or f"Test failed with exit code {exit_code}. No output captured."
+            # Output is already stored
 
     except FileNotFoundError:
         logger.exception(f"[{test_id}] Error: 'npx' command not found. Is Node.js/npm installed and in PATH?")

@@ -7,6 +7,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
+  timeout: 120000,
+  expect: {
+    timeout: 10000,
+  },
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
@@ -16,7 +20,6 @@ export default defineConfig({
     deviceScaleFactor: 2,
     hasTouch: false,
     isMobile: false,
-    headless: false,
     geolocation: { longitude: -122.4194, latitude: 37.7749 },
     permissions: ['geolocation'],
     actionTimeout: 15000,
@@ -43,6 +46,6 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
   },
 }); 

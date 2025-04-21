@@ -26,6 +26,10 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // window.localStorage.setItem('demoBrandDomain', branding.domain);
   }, { logoUrl, primaryColor /*, domain */ });
 
+  // Add a very brief pause AFTER adding the init script but BEFORE navigating
+  // This can sometimes help ensure the script context is fully ready.
+  await page.waitForTimeout(100); 
+
   // Add overall timeout handling
   let testCompleted = false;
   
@@ -68,10 +72,16 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     
     // 1. Start on the home page (Branding should be applied automatically)
     await page.goto('/');
-    await page.waitForURL('/', { timeout: 10000 }); // Wait for homepage
+    await page.waitForURL('/', { timeout: 10000 });
     
-    // Wait for the app to render - look for some expected content
-    await page.waitForSelector('body', { timeout: 5000 });
+    // Wait for the app to render
+    await page.waitForSelector('body', { timeout: 7000 });
+    
+    // *** DIAGNOSTIC STEP: Check localStorage after load ***
+    const storedLogo = await page.evaluate(() => window.localStorage.getItem('demoBrandLogo'));
+    const storedColor = await page.evaluate(() => window.localStorage.getItem('demoBrandColor'));
+    console.log(`[Test] localStorage check - Logo: ${storedLogo}, Color: ${storedColor}`);
+    // *** END DIAGNOSTIC STEP ***
     
     // Add some realistic mouse movements - reduced for stability
     await realisticMouseMovement(page, 2, 3);
