@@ -124,12 +124,6 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     console.log(`[Test] localStorage check - Logo: ${storedLogo}, Color: ${storedColor}`);
     // *** END DIAGNOSTIC STEP ***
     
-    // Add some realistic mouse movements - reduced for stability
-    await realisticMouseMovement(page, 2, 3);
-    
-    // Simulate a real user looking at the home page - much slower timing
-    await page.waitForTimeout(2500 + Math.random() * 1500);
-    
     // Take a screenshot (but not in a way that would affect Highlight)
     await page.screenshot({ path: 'test-results/e2e-home.png' });
     
@@ -164,7 +158,8 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Ensure we're on the signup page
     await expect(page.url()).toContain('/signup');
     
-    // Simulate looking at the signup form before starting to fill it - much slower
+    // Simulate looking at the signup form before starting to fill it - maybe some mouse jitters
+    await realisticMouseMovement(page, 1, 2); // Add short mouse movement here
     await page.waitForTimeout(1800 + Math.random() * 1200);
     
     // Skip extra mouse movements to reduce complexity
@@ -216,7 +211,13 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Find the submit button
     const signupButton = page.getByRole('button', { name: /sign up/i });
     
-    // Click directly without natural movement to simplify
+    // Add natural movement towards the button
+    const signupButtonBox = await signupButton.boundingBox();
+    if (signupButtonBox) {
+      await naturalMouseMovementToElement(page, signupButtonBox);
+    }
+    
+    // Click directly without natural movement to simplify - Changed to use the button directly
     await signupButton.click();
     
     // Wait for navigation or success state
@@ -247,6 +248,12 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         page.locator('header a, nav a, a[href="/"]').first()
       );
       
+      // Add natural movement towards the logo
+      const logoBox = await logo.boundingBox();
+      if (logoBox) {
+        await naturalMouseMovementToElement(page, logoBox);
+      }
+
       // Click the logo to go back to the homepage
       await logo.click({ timeout: 5000 });
       
@@ -283,6 +290,12 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         const randomPlanIndex = Math.floor(Math.random() * planButtons.length);
         const selectedPlan = planButtons[randomPlanIndex];
         
+        // Add natural movement towards the selected plan button
+        const planBox = await selectedPlan.boundingBox();
+        if (planBox) {
+          await naturalMouseMovementToElement(page, planBox);
+        }
+
         // Click on the plan
         await selectedPlan.click();
         
@@ -303,6 +316,12 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         
         // Scroll to ensure button is visible
         await payButton.scrollIntoViewIfNeeded();
+        
+        // Add natural movement towards the pay button
+        const payButtonBox = await payButton.boundingBox();
+        if (payButtonBox) {
+           await naturalMouseMovementToElement(page, payButtonBox);
+        }
         
         // Short wait before clicking
         await page.waitForTimeout(1500 + Math.random() * 1000);
