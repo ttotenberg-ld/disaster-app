@@ -76,7 +76,11 @@ export const SignUp = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:z-10 sm:text-sm focus:ring-2 focus:ring-offset-2"
+                style={{
+                  '--tw-ring-color': 'var(--brand-primary-color)',
+                  borderColor: 'var(--brand-primary-color)'
+                } as React.CSSProperties}
                 placeholder="Email address"
               />
             </div>
@@ -92,7 +96,11 @@ export const SignUp = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:z-10 sm:text-sm focus:ring-2 focus:ring-offset-2"
+                style={{
+                  '--tw-ring-color': 'var(--brand-primary-color)',
+                  borderColor: 'var(--brand-primary-color)'
+                } as React.CSSProperties}
                 placeholder="Password"
               />
             </div>
@@ -108,7 +116,11 @@ export const SignUp = () => {
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:z-10 sm:text-sm focus:ring-2 focus:ring-offset-2"
+                style={{
+                  '--tw-ring-color': 'var(--brand-primary-color)',
+                  borderColor: 'var(--brand-primary-color)'
+                } as React.CSSProperties}
                 placeholder="Confirm Password"
               />
             </div>
@@ -124,14 +136,22 @@ export const SignUp = () => {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              style={{
+                backgroundColor: 'var(--brand-primary-color)',
+                color: 'var(--brand-contrast-color)'
+              }}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 hover:opacity-90"
             >
               {loading ? 'Creating account...' : 'Sign up'}
             </button>
           </div>
 
           <div className="text-center">
-            <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
+            <Link 
+              to="/login" 
+              style={{ color: 'var(--brand-primary-color)' }}
+              className="hover:opacity-80"
+            >
               Already have an account? Sign in
             </Link>
           </div>
