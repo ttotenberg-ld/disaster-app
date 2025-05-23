@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, RefreshCw } from 'lucide-react';
 import { PricingPlans } from '../components/PricingPlans';
+import { ObservabilityExample } from '../components/ObservabilityExample';
 import Logo from '../components/Logo';
 import { useBrandingStore } from '../store/branding';
 
@@ -56,6 +57,10 @@ export const Home = () => {
               </div>
             </div>
           </main>
+        </div>
+        {/* LaunchDarkly Observability Demo */}
+        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 flex items-center justify-center p-8">
+          <ObservabilityExample />
         </div>
       </div>
       

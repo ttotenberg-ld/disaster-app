@@ -1,144 +1,113 @@
-// Using the same project ID as in the app
-const HIGHLIGHT_PROJECT_ID = '4d7y25qd';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const HIGHLIGHT_PROJECT_ID = 'ejlj47ny';
 
 /**
  * Initialize Highlight.io for Playwright tests
- * This should be identical to the app's initialization to create indistinguishable sessions
+ * This mimics the exact same initialization as the main app
  */
 export const initializeHighlightForTests = async (page: { addInitScript: (fn: () => void) => Promise<void> }) => {
-  // First, let's add some normal browser properties that might be missing in a headless browser
   await page.addInitScript(() => {
-    // Make the browser appear more like a regular browser
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    // This mimics the exact initialization process from the main app
+    // We need to inject and initialize Highlight in the browser context
     
-    // Add a normal-looking user agent if not present
-    if (navigator.userAgent.includes('HeadlessChrome')) {
-      Object.defineProperty(navigator, 'userAgent', { 
-        get: () => navigator.userAgent.replace('HeadlessChrome', 'Chrome')
-      });
-    }
-    
-    // Add normal storage behaviors
-    // Sometimes Playwright test context doesn't have localStorage
-    if (!window.localStorage) {
-      const storage: Record<string, string> = {};
-      Object.defineProperty(window, 'localStorage', {
-        value: {
-          getItem: (key: string) => key in storage ? storage[key] : null,
-          setItem: (key: string, value: string) => { storage[key] = value; },
-          removeItem: (key: string) => { delete storage[key]; }
-        }
-      });
-    }
-  });
-  
-  // We need to inject and initialize Highlight in the browser context
-  await page.addInitScript(() => {
-    // This code runs in the browser
-    try {
-      // Add normal-looking browser behavior
-      // Create and trigger some natural-looking mouse movements
-      let eventCount = 0;
-      const createMouseEvent = () => {
-        const evt = new MouseEvent('mousemove', {
-          bubbles: true,
-          cancelable: true,
-          clientX: Math.floor(Math.random() * window.innerWidth),
-          clientY: Math.floor(Math.random() * window.innerHeight)
-        });
-        document.dispatchEvent(evt);
-        eventCount++;
-        if (eventCount < 10) {
-          setTimeout(createMouseEvent, Math.random() * 500 + 100);
-        }
+    // First inject the tracking snippet
+    (function (h: any, i: Document, g: string) {
+      if ((window as any).H) return;
+      
+      // Initialize the highlight object
+      (window as any).highlight = {};
+      (window as any).highlight.identify = function(id: string, c: any) {
+        (window as any).highlight.identity = id;
+        (window as any).highlight.traits = c || {};
       };
       
-      // Start creating mouse events
-      setTimeout(createMouseEvent, 1000);
+      (window as any).highlight.track = function(n: string, p: any) {
+        (window as any).highlight.events = (window as any).highlight.events || [];
+        (window as any).highlight.events.push({ name: n, props: p });
+      };
       
-      // Try to use the window.H if it's already available
-      // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
-      if (window.H) {
+      (window as any).highlight.load = function(t: string) {
+        const e = i.getElementsByTagName(g)[0];
+        const n = i.createElement(g) as HTMLScriptElement;
+        n.async = true;
+        n.src = "https://snippet.highlight.run/v1/" + t + "/snippet.js";
+        e.parentNode!.insertBefore(n, e);
+      };
+      
+      // Load with the project ID
+      (window as any).highlight.load("ejlj47ny");
+    })(window, document, "script");
+    
+    // Initialize the H object (main Highlight SDK)
+    const script = document.createElement('script');
+    script.async = true;
+    
+    script.onload = () => {
+      try {
         // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
-        window.H.init(HIGHLIGHT_PROJECT_ID, {
-          // Use the exact same configuration as the app
-          serviceName: 'disaster-app', // Same as app, not 'disaster-app-tests'
-          tracingOrigins: true,
-          networkRecording: {
-            enabled: true,
-            recordHeadersAndBody: true,
-            urlBlocklist: [
-              'api/token',
-            ],
-          },
-          enableSegmentIntegration: true, // Enable this to appear like a normal integration
-          enableCanvasRecording: true, // Enable this to look more like real user
-        });
-      } else {
-        // If H is not available, try to load it via script
-        const script = document.createElement('script');
-        script.async = true;
-        script.src = `https://snippet.highlight.run/v1/${HIGHLIGHT_PROJECT_ID}/snippet.js`;
-        document.head.appendChild(script);
+        if (window.H && window.H.init) {
+          // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
+          window.H.init(HIGHLIGHT_PROJECT_ID, {
+            environment: 'test',
+            debug: false,
+            enableStrictPrivacy: false,
+            sessionReplayEnabled: true,
+            recordCrossOriginIframe: true,
+            sessionProbability: 1,
+            reportConsoleErrors: true,
+            enablePerformanceRecording: true,
+            enableCanvasRecording: false,
+            enableWebGLRecording: false,
+            samplingStrategy: {
+              canvas: 0,
+              webgl: 0
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Failed to initialize Highlight', e);
       }
-    } catch (e) {
-      console.error('Failed to initialize Highlight', e);
-    }
+    };
+    
+    script.src = `https://snippet.highlight.run/v1/ejlj47ny/snippet.js`;
+    document.head.appendChild(script);
   });
 };
 
 /**
- * Identify the test user in Highlight 
- * Uses the same pattern as the app's identifyUser function
+ * Identify the test user in Highlight
  */
-export const identifyTestUser = async (
-  page: { evaluate: <T>(fn: (arg: T) => void, arg: T) => Promise<void> }, 
-  email: string, 
-  testId: string
-) => {
-  await page.evaluate(({ email, testId }) => {
+export const identifyTestUser = async (page: { evaluate: (fn: () => void) => Promise<void> }, email: string, userId: string) => {
+  await page.evaluate(() => {
     try {
       // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
       if (window.H && window.H.identify) {
         // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
-        window.H.identify(email, {
-          id: testId,
-          // Generate valid-looking user properties that look natural
-          firstName: email.split('@')[0].split('-')[0],
-          source: 'organic',
-          browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Firefox'
+        window.H.identify(userId, {
+          email: email,
+          testUser: true,
+          environment: 'test'
         });
       }
     } catch (e) {
       console.error('Failed to identify user in Highlight', e);
     }
-  }, { email, testId });
+  });
 };
 
 /**
  * Gracefully shut down Highlight to ensure all telemetry is sent
  */
 export const shutdownHighlight = async (page: { evaluate: (fn: () => void) => Promise<void> }) => {
-  // Generate final natural-looking events before shutdown
   await page.evaluate(() => {
     try {
-      // Create a few natural-looking events
-      const events = ['scroll', 'mousemove', 'click'];
-      events.forEach(eventType => {
-        const evt = new Event(eventType, { bubbles: true });
-        document.dispatchEvent(evt);
-      });
-      
-      // Add a final page view event with normal user properties
+      // Track a final page view to ensure telemetry is sent
       // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
       if (window.H && window.H.track) {
         // @ts-expect-error - Highlight SDK is loaded by the app but not available in types
-        window.H.track('Page Viewed', {
+        window.H.track('Test Session End', {
           timestamp: new Date().toISOString(),
-          path: window.location.pathname,
-          referrer: document.referrer || 'direct',
-          viewportWidth: window.innerWidth,
-          viewportHeight: window.innerHeight
+          testComplete: true
         });
       }
     } catch (e) {
@@ -146,11 +115,6 @@ export const shutdownHighlight = async (page: { evaluate: (fn: () => void) => Pr
     }
   });
   
-  // Wait for pending requests to complete (ensures telemetry is sent)
-  return new Promise<void>((resolve) => {
-    // Give Highlight more time to send any queued telemetry
-    setTimeout(() => {
-      resolve();
-    }, 8000); // Increased to 8000ms to ensure telemetry is sent
-  });
+  // Give Highlight more time to send any queued telemetry
+  await new Promise(resolve => setTimeout(resolve, 2000));
 }; 

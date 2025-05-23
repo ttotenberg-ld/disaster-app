@@ -49,7 +49,7 @@ def throw_demo_error(context):
     )
 
 H = highlight_io.H(
-	"4d7y25qd",
+	"ejlj47ny",
 	instrument_logging=True,
 	service_name="disaster-app",
 	service_version="1.0.7",

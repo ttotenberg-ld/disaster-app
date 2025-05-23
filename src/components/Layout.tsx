@@ -36,15 +36,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     // Log what's being applied
     console.log(`[Layout useEffect] Updating CSS - Primary: ${effectivePrimary}, Contrast: ${effectiveContrast}`);
 
-    document.documentElement.style.setProperty('--brand-primary-color', effectivePrimary);
-    document.documentElement.style.setProperty('--brand-contrast-color', effectiveContrast);
+    // Set CSS variables on document root
+    const root = document.documentElement;
+    root.style.setProperty('--brand-primary-color', effectivePrimary);
+    root.style.setProperty('--brand-contrast-color', effectiveContrast);
 
-    // Cleanup (optional)
+    // Also set on body for fallback
+    document.body.style.setProperty('--brand-primary-color', effectivePrimary);
+    document.body.style.setProperty('--brand-contrast-color', effectiveContrast);
+
+    // Force a style recalculation
+    root.style.display = 'none';
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    root.offsetHeight; // trigger reflow
+    root.style.display = '';
+
+    console.log(`[Layout useEffect] CSS variables set. Primary: ${root.style.getPropertyValue('--brand-primary-color')}, Contrast: ${root.style.getPropertyValue('--brand-contrast-color')}`);
+
+    // Cleanup function is optional since we always want the latest colors
     return () => {
-      // ... remove properties ...
+      // Could remove properties here if needed
     };
-  // Dependency array only includes the colors now
-  }, [primaryColor, contrastColor]); 
+  }, [primaryColor, contrastColor]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -73,6 +86,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   >
                     <User className="w-4 h-4 mr-1" />
                     Profile
+                  </Link>
+                  <Link 
+                    to="/config" 
+                    className="flex items-center text-gray-700 hover:text-gray-900"
+                  >
+                    Config
+                  </Link>
+                  <Link 
+                    to="/debug-branding" 
+                    className="flex items-center text-gray-700 hover:text-gray-900 text-xs"
+                  >
+                    Debug
                   </Link>
                   <button
                     onClick={() => signOut()}

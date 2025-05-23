@@ -1,41 +1,81 @@
-# Auth Demo Application
+# Disaster App Demo - LaunchDarkly & Observability Demo
 
-## New: Playwright Tests for Highlight.io Traffic Generation
+## New: Playwright Tests for Backend Highlight.io Traffic Generation
 
-This project now includes Playwright tests that generate realistic user traffic that is indistinguishable from real user sessions in your Highlight.io dashboard. You can use these tests to:
+This project includes automated Playwright tests that generate realistic traffic indistinguishable from real user sessions in your Highlight.io dashboard (backend only). You can use these tests to:
 
-1. Generate sample traffic in your Highlight.io dashboard that looks exactly like real user sessions
-2. See how user actions are captured by Highlight with natural timing and behavior
-3. Test error handling and edge cases
+1. Generate sample backend traffic in your Highlight.io dashboard that looks exactly like real user sessions
+2. See how user actions are captured by backend Highlight with natural timing and behavior
 
-### Running the tests
+### Quick start:
 
 ```bash
-# Install dependencies if you haven't already
+# Install dependencies
 npm install
 
-# Run all tests (generates traffic in Highlight)
-npm test
+# Run all tests (generates backend traffic in Highlight)
+npm run test
 
-# Run tests with UI for debugging
+# Run tests with UI (watch the browser interactions)
 npm run test:ui
+
+# Run a specific test
+npx playwright test tests/signup.spec.ts
 ```
 
-The tests include:
-- Sign-up flow with realistic typing and timing
-- Login flow with natural user behavior
-- Navigation through various app pages with realistic scrolling and interaction
+### How the tests work with backend Highlight
 
-### How the tests work with Highlight
+- The frontend now uses **LaunchDarkly Observability** for client-side monitoring
+- Backend tests still use **Highlight.io** for session replay and backend error tracking
+- Uses the exact same Highlight SDK initialization as the backend API
 
-Our tests are designed to mimic real user behavior:
-1. Uses the exact same Highlight SDK initialization as the main app
-2. Simulates realistic user interactions with natural timing and pauses
-3. Only identifies users at the same points a real user would be identified
-4. Performs actions with human-like randomness in timing
-5. Gracefully shuts down to ensure all telemetry is sent
+The tests will appear as normal user sessions in your Highlight dashboard, complete with:
+- Realistic mouse movements and interactions  
+- Form submissions and navigation
+- Error tracking and user identification
+- Natural timing between actions
 
-Check out the `/tests` directory for more details!
+## Frontend Observability: LaunchDarkly
+
+The frontend now uses LaunchDarkly's observability features instead of Highlight.io:
+
+### Automatic Features
+- Error monitoring
+- Performance monitoring (Core Web Vitals)
+- Network request tracking
+- User session tracking
+
+### Manual Tracking Available
+- Custom error tracking
+- Custom log events  
+- Performance spans
+- Custom metrics
+
+### Configuration
+Update your observability project ID in `src/lib/launchdarkly.ts` with your actual project ID from the LaunchDarkly UI.
+
+## Backend Observability: Highlight.io
+
+The backend continues to use Highlight.io for server-side monitoring and error tracking.
+
+## Getting Started
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Update observability configuration:
+   - LaunchDarkly: Update project ID in `src/lib/launchdarkly.ts`
+   - Highlight.io: Backend already configured
+4. Start development: `npm run dev`
+5. Run tests: `npm run test`
+
+## Tech Stack
+
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: FastAPI + Python
+- **Frontend Observability**: LaunchDarkly
+- **Backend Observability**: Highlight.io
+- **Testing**: Playwright
+- **Feature Flags**: LaunchDarkly
 
 A demo application with a React frontend and a FastAPI backend that showcases a complete authentication flow.
 

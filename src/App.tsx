@@ -1,6 +1,5 @@
 import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ErrorBoundary } from '@highlight-run/react';
 import { useLDClient } from 'launchdarkly-react-client-sdk';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
@@ -8,19 +7,19 @@ import { SignUp } from './pages/SignUp';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import ConfigurationPage from './pages/ConfigurationPage';
+import { DebugBranding } from './pages/DebugBranding';
 import { useAuthStore, setLDClient } from './store/auth';
-import { initializeHighlight } from './lib/highlight';
+import { useBrandingStore } from './store/branding';
 import { ThemeProvider } from './components/ThemeProvider';
+
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Payment = lazy(() => import('./pages/Payment'));
 
-// Initialize Highlight.io
-initializeHighlight();
-
 function App() {
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
+  const loadInitialBranding = useBrandingStore((state) => state.loadInitialBranding);
   const ldClient = useLDClient();
   
   // Store LaunchDarkly client reference for use in auth store
@@ -29,6 +28,11 @@ function App() {
       setLDClient(ldClient);
     }
   }, [ldClient]);
+  
+  // Initialize branding store from localStorage
+  useEffect(() => {
+    loadInitialBranding();
+  }, [loadInitialBranding]);
   
   // Only fetch profile once when app mounts
   useEffect(() => {
@@ -44,25 +48,24 @@ function App() {
   );
 
   return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <Router>
-          <Layout>
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/payment" element={<Payment />} />
-                <Route path="/config" element={<ConfigurationPage />} />
-              </Routes>
-            </Suspense>
-          </Layout>
-        </Router>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ThemeProvider>
+      <Router>
+        <Layout>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/payment" element={<Payment />} />
+              <Route path="/config" element={<ConfigurationPage />} />
+              <Route path="/debug-branding" element={<DebugBranding />} />
+            </Routes>
+          </Suspense>
+        </Layout>
+      </Router>
+    </ThemeProvider>
   );
 }
 

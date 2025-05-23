@@ -55,16 +55,27 @@ function ConfigurationPage() {
             }
             setIsLoadingSearch(true);
             setError(null);
+            
+            console.log(`[ConfigurationPage] Searching for: ${query}`);
+            
             try {
-                const response = await fetch(`${CONFIG_API_BASE_URL}/search-brands?q=${encodeURIComponent(query)}`);
+                const url = `${CONFIG_API_BASE_URL}/search-brands?q=${encodeURIComponent(query)}`;
+                console.log(`[ConfigurationPage] Making request to: ${url}`);
+                
+                const response = await fetch(url);
+                console.log(`[ConfigurationPage] Response status: ${response.status}`);
+                
                 if (!response.ok) {
                     const errorData = await response.text();
+                    console.error(`[ConfigurationPage] API error:`, errorData);
                     throw new Error(`HTTP error! status: ${response.status}, details: ${errorData}`);
                 }
+                
                 const data: BrandSearchResult[] = await response.json();
+                console.log(`[ConfigurationPage] Search results:`, data);
                 setSearchResults(data);
             } catch (err) {
-                console.error("Search failed:", err);
+                console.error("[ConfigurationPage] Search failed:", err);
                 const message = err instanceof Error ? err.message : 'Failed to fetch search results.';
                 setError(message);
                 setSearchResults([]);
@@ -99,7 +110,8 @@ function ConfigurationPage() {
             console.log('Branding configured via store:', message);
             setTimeout(() => setConfirmationMessage(null), 5000);
 
-            setSearchTerm(brand.name);
+            // Clear search instead of setting it to brand name to avoid triggering new search
+            setSearchTerm('');
             setSearchResults([]);
         } else {
             const errorMsg = 'Error: Could not apply branding - logo or color missing.';
@@ -254,7 +266,7 @@ function ConfigurationPage() {
                 />
                  {isLoadingSearch && <div className="absolute right-2 top-9 text-gray-500 text-sm">Loading...</div>}
                 {searchResults.length > 0 && (
-                    <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
                         {searchResults.map((brand) => (
                             <li
                                 key={brand.domain}
@@ -262,7 +274,15 @@ function ConfigurationPage() {
                                 className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
                             >
                                 {brand.logo_url && (
-                                    <img src={brand.logo_url} alt={`${brand.name} logo`} className="w-6 h-6 mr-2 object-contain flex-shrink-0" />
+                                    <img 
+                                        src={brand.logo_url} 
+                                        alt={`${brand.name} logo`} 
+                                        className="w-6 h-6 mr-2 object-contain flex-shrink-0"
+                                        onError={(e) => {
+                                            console.warn('Failed to load logo:', brand.logo_url);
+                                            e.currentTarget.style.display = 'none';
+                                        }}
+                                    />
                                 )}
                                 <span className="flex-grow mr-2">{brand.name} ({brand.domain})</span>
                                 {brand.primaryColor && (
