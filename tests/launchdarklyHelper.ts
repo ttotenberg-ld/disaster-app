@@ -1,6 +1,32 @@
 import { Page } from '@playwright/test';
 import { OBSERVABILITY_PROJECT_ID } from '../src/lib/launchdarkly';
 
+// Type definitions for mock observability data
+interface MockNetworkRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body?: BodyInit | null;
+  timestamp: string;
+  recorded: boolean;
+}
+
+interface MockTrace {
+  id: string;
+  name: string;
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  attributes: Record<string, unknown>;
+  spans: unknown[];
+}
+
+interface MockObservabilityData {
+  networkRequests: MockNetworkRequest[];
+  traces: MockTrace[];
+  sessionEvents: unknown[];
+}
+
 /**
  * Initialize LaunchDarkly observability for tests
  * Since LaunchDarkly observability packages aren't available via CDN,
@@ -11,6 +37,73 @@ export async function initializeLaunchDarklyForTests(page: Page): Promise<void> 
     // Create a mock LaunchDarkly client that can track events for testing
     await page.evaluate(
       ({ projectId }) => {
+        // Mock observability data storage
+        const observabilityData: MockObservabilityData = {
+          networkRequests: [],
+          traces: [],
+          sessionEvents: []
+        };
+
+        // Mock network recording functionality
+        const mockNetworkRecording = {
+          recordRequest: (request: Partial<MockNetworkRequest>) => {
+            const recordedRequest: MockNetworkRequest = {
+              url: request.url || '',
+              method: request.method || 'GET',
+              headers: (request.headers as Record<string, string>) || {},
+              body: request.body,
+              timestamp: new Date().toISOString(),
+              recorded: true
+            };
+            observabilityData.networkRequests.push(recordedRequest);
+            console.log('[Test] Network request recorded:', recordedRequest);
+          },
+          getRecordedRequests: () => observabilityData.networkRequests
+        };
+
+        // Mock tracing functionality
+        const mockTracing = {
+          startTrace: (name: string, attributes?: Record<string, unknown>) => {
+            const trace: MockTrace = {
+              id: `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              name,
+              startTime: Date.now(),
+              attributes: attributes || {},
+              spans: []
+            };
+            observabilityData.traces.push(trace);
+            console.log('[Test] Trace started:', trace);
+            return trace;
+          },
+          endTrace: (traceId: string) => {
+            const trace = observabilityData.traces.find(t => t.id === traceId);
+            if (trace) {
+              trace.endTime = Date.now();
+              trace.duration = trace.endTime - trace.startTime;
+              console.log('[Test] Trace ended:', trace);
+            }
+          },
+          getTraces: () => observabilityData.traces
+        };
+
+        // Intercept fetch requests to simulate network recording
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+          const [input, init] = args;
+          const url = typeof input === 'string' ? input : (input as Request).url;
+          
+          // Record the request
+          mockNetworkRecording.recordRequest({
+            url,
+            method: init?.method || 'GET',
+            headers: init?.headers as Record<string, string> || {},
+            body: init?.body
+          });
+          
+          // Call original fetch
+          return originalFetch.apply(window, args);
+        };
+
         // Mock LaunchDarkly client for testing
         const mockClient = {
           on: (event: string, callback: () => void) => {
@@ -24,28 +117,63 @@ export async function initializeLaunchDarklyForTests(page: Page): Promise<void> 
           },
           identify: (context: unknown) => {
             console.log('[Test] LaunchDarkly identify called:', context);
+            
+            // Simulate observability tracking for identify
+            mockTracing.startTrace('user_identify', { context });
+            
             return Promise.resolve();
           },
           track: (eventName: string, data?: unknown, metricValue?: unknown) => {
             console.log('[Test] LaunchDarkly track called:', { eventName, data, metricValue });
+            
+            // Simulate observability tracking for custom events
+            const trace = mockTracing.startTrace('custom_event', { 
+              eventName, 
+              data, 
+              metricValue 
+            });
+            setTimeout(() => mockTracing.endTrace(trace.id), 10);
           },
           variation: (flagKey: string, defaultValue: unknown) => {
             console.log('[Test] LaunchDarkly variation called:', { flagKey, defaultValue });
+            
+            // Simulate observability tracking for flag evaluations
+            const trace = mockTracing.startTrace('flag_evaluation', { 
+              flagKey, 
+              defaultValue 
+            });
+            setTimeout(() => mockTracing.endTrace(trace.id), 5);
+            
             return defaultValue;
           },
           flush: () => {
             console.log('[Test] LaunchDarkly flush called');
+            console.log('[Test] Observability data to flush:', {
+              networkRequests: observabilityData.networkRequests.length,
+              traces: observabilityData.traces.length,
+              sessionEvents: observabilityData.sessionEvents.length
+            });
           },
           close: () => {
             console.log('[Test] LaunchDarkly close called');
+            // Restore original fetch
+            window.fetch = originalFetch;
+          },
+          // Expose observability methods for testing
+          _test: {
+            getObservabilityData: () => observabilityData,
+            getNetworkRequests: () => mockNetworkRecording.getRecordedRequests(),
+            getTraces: () => mockTracing.getTraces(),
+            networkRecording: mockNetworkRecording,
+            tracing: mockTracing
           }
         };
 
         // Store client globally for test access
-        (window as any).testLDClient = mockClient;
-        (window as any).testLDObservabilityProjectId = projectId;
+        (window as Record<string, unknown>).testLDClient = mockClient;
+        (window as Record<string, unknown>).testLDObservabilityProjectId = projectId;
         
-        console.log('[Test] Mock LaunchDarkly client initialized for testing');
+        console.log('[Test] Mock LaunchDarkly client initialized with observability features');
       },
       { projectId: OBSERVABILITY_PROJECT_ID }
     );
@@ -181,4 +309,113 @@ export async function mirrorBackendEvent(page: Page, eventType: 'signup' | 'logi
   };
   
   await trackTestEvent(page, eventName, eventData);
+}
+
+/**
+ * Get recorded network requests from the mock LaunchDarkly observability
+ */
+export async function getRecordedNetworkRequests(page: Page): Promise<unknown[]> {
+  try {
+    return await page.evaluate(() => {
+      const client = (window as any).testLDClient;
+      if (client && client._test) {
+        return client._test.getNetworkRequests();
+      }
+      return [];
+    });
+  } catch (error) {
+    console.error('[Test] Error getting recorded network requests:', error);
+    return [];
+  }
+}
+
+/**
+ * Get recorded traces from the mock LaunchDarkly observability
+ */
+export async function getRecordedTraces(page: Page): Promise<unknown[]> {
+  try {
+    return await page.evaluate(() => {
+      const client = (window as any).testLDClient;
+      if (client && client._test) {
+        return client._test.getTraces();
+      }
+      return [];
+    });
+  } catch (error) {
+    console.error('[Test] Error getting recorded traces:', error);
+    return [];
+  }
+}
+
+/**
+ * Verify that network recording is working by checking if requests are being captured
+ */
+export async function verifyNetworkRecording(page: Page): Promise<boolean> {
+  try {
+    // Make a test request to trigger network recording
+    await page.evaluate(() => {
+      fetch('/api/test-network-recording', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ test: 'observability' })
+      }).catch(() => {
+        // Ignore fetch errors, we're just testing recording
+      });
+    });
+
+    // Wait a moment for the request to be recorded
+    await page.waitForTimeout(100);
+
+    // Check if the request was recorded
+    const requests = await getRecordedNetworkRequests(page);
+    return Array.isArray(requests) && requests.length > 0;
+  } catch (error) {
+    console.error('[Test] Error verifying network recording:', error);
+    return false;
+  }
+}
+
+/**
+ * Verify that tracing is working by checking if traces are being created
+ */
+export async function verifyTracing(page: Page): Promise<boolean> {
+  try {
+    // Trigger a flag evaluation to create a trace
+    await page.evaluate(() => {
+      const client = (window as any).testLDClient;
+      if (client) {
+        client.variation('test-flag', false);
+      }
+    });
+
+    // Wait a moment for the trace to be recorded
+    await page.waitForTimeout(100);
+
+    // Check if traces were recorded
+    const traces = await getRecordedTraces(page);
+    return Array.isArray(traces) && traces.length > 0;
+  } catch (error) {
+    console.error('[Test] Error verifying tracing:', error);
+    return false;
+  }
+}
+
+/**
+ * Test the complete observability setup including network recording and tracing
+ */
+export async function testObservabilityFeatures(page: Page): Promise<{ networkRecording: boolean; tracing: boolean }> {
+  try {
+    const networkRecording = await verifyNetworkRecording(page);
+    const tracing = await verifyTracing(page);
+
+    console.log('[Test] Observability features test results:', {
+      networkRecording,
+      tracing
+    });
+
+    return { networkRecording, tracing };
+  } catch (error) {
+    console.error('[Test] Error testing observability features:', error);
+    return { networkRecording: false, tracing: false };
+  }
 } 
