@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, RefreshCw } from 'lucide-react';
 import { PricingPlans } from '../components/PricingPlans';
-import { ObservabilityExample } from '../components/ObservabilityExample';
 import Logo from '../components/Logo';
 import { useBrandingStore } from '../store/branding';
 
@@ -24,10 +23,10 @@ export const Home = () => {
   return (
     <div className="relative overflow-hidden">
       <div className="max-w-7xl mx-auto">
-        <div className="relative z-10 pb-8 bg-gray-50 sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
+        <div className="relative z-10 pb-8 bg-gray-50 sm:pb-16 md:pb-20 lg:pb-28 xl:pb-32">
           <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
-            <div className="sm:text-center lg:text-left">
-              <div className="mb-6 flex justify-center lg:justify-start">
+            <div className="text-center">
+              <div className="mb-6 flex justify-center">
                 <Logo 
                   overrideSrc={logoUrl || DEFAULT_FALLBACK_LOGO_URL} 
                   className="h-20 w-auto object-contain"
@@ -37,10 +36,10 @@ export const Home = () => {
                 <span className="block">Transform your</span>
                 <span className="block custom-primary-text">digital experience</span>
               </h1>
-              <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+              <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl">
                 Join thousands of users who have already discovered the power of our platform. Start your journey today.
               </p>
-              <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+              <div className="mt-5 sm:mt-8 sm:flex sm:justify-center">
                 <div className="rounded-md shadow">
                   <Link
                     to="/signup"
@@ -57,10 +56,6 @@ export const Home = () => {
               </div>
             </div>
           </main>
-        </div>
-        {/* LaunchDarkly Observability Demo */}
-        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 flex items-center justify-center p-8">
-          <ObservabilityExample />
         </div>
       </div>
       

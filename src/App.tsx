@@ -7,7 +7,6 @@ import { SignUp } from './pages/SignUp';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
 import ConfigurationPage from './pages/ConfigurationPage';
-import { DebugBranding } from './pages/DebugBranding';
 import { useAuthStore, setLDClient } from './store/auth';
 import { useBrandingStore } from './store/branding';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -60,7 +59,6 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/payment" element={<Payment />} />
               <Route path="/config" element={<ConfigurationPage />} />
-              <Route path="/debug-branding" element={<DebugBranding />} />
             </Routes>
           </Suspense>
         </Layout>
