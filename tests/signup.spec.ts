@@ -1,9 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 import { 
-  initializeHighlightForTests, 
+  initializeLaunchDarklyForTests, 
   identifyTestUser, 
-  shutdownHighlight 
-} from './highlightHelper';
+  shutdownLaunchDarkly,
+  mirrorBackendEvent,
+  trackTestEvent
+} from './launchdarklyHelper';
 
 // Test that navigates through the sign-up flow with realistic typing
 test('sign up flow with realistic typing', async ({ page, context }) => {
@@ -21,8 +23,8 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
     }
   ]);
   
-  // Initialize Highlight for this test - identical to how the app initializes it
-  await initializeHighlightForTests(page);
+  // Initialize LaunchDarkly observability for this test
+  await initializeLaunchDarklyForTests(page);
   
   // Generate a unique test email that looks like a real email
   const names = ['john', 'mary', 'david', 'sarah', 'mike', 'jennifer'];
@@ -34,6 +36,12 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
   const testEmail = `${randomName}${randomNumber}@${randomDomain}`;
   const testPassword = 'SecureP@ss' + Math.floor(Math.random() * 1000);
   const testId = Date.now().toString();
+  
+  // Track test start event
+  await trackTestEvent(page, 'test_signup_started', {
+    email: testEmail,
+    testId: testId
+  });
   
   // 1. Start on the home page
   await page.goto('/');
@@ -47,7 +55,7 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
   // Simulate a real user looking at the home page
   await page.waitForTimeout(1500 + Math.random() * 1000);
   
-  // Take a screenshot (but not in a way that would affect Highlight)
+  // Take a screenshot (but not in a way that would affect LaunchDarkly)
   await page.screenshot({ path: 'test-results/home.png' });
   
   // 2. Navigate to the signup screen
@@ -62,6 +70,9 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
     // Slight pause after hovering
     await page.waitForTimeout(300 + Math.random() * 200);
     
+    // Track navigation event
+    await trackTestEvent(page, 'signup_navigation_started');
+    
     // Click the link
     await page.getByRole('link', { name: /sign up/i, exact: false }).click();
   } else {
@@ -72,6 +83,9 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
   // Ensure we're on the signup page
   await expect(page.url()).toContain('/signup');
   
+  // Track form view event
+  await trackTestEvent(page, 'signup_form_viewed');
+  
   // Simulate looking at the signup form before starting to fill it
   await page.waitForTimeout(800 + Math.random() * 500);
   
@@ -80,7 +94,7 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
   
   // 3. Clear the existing text in email and password fields
   const emailInput = page.getByLabel('Email');
-  const passwordInput = page.getByLabel('Password');
+  const passwordInput = page.locator('#password'); // Use ID selector instead of label
   
   // Hover over the email field first
   await emailInput.hover();
@@ -103,6 +117,9 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
   // This uses type-by-character with a slight delay to simulate human typing
   await emailInput.hover();
   await emailInput.focus();
+  
+  // Track form interaction start
+  await trackTestEvent(page, 'signup_form_interaction_started');
   
   // Even more realistic typing with occasional mistakes and corrections
   for (let i = 0; i < testEmail.length; i++) {
@@ -134,6 +151,9 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
     await page.waitForTimeout(delay);
   }
   
+  // Track email field completion
+  await trackTestEvent(page, 'signup_email_completed');
+  
   // Pause after completing the email field (like a real user would)
   await page.waitForTimeout(500 + Math.random() * 300);
   
@@ -153,6 +173,9 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
     await page.waitForTimeout(delay);
   }
   
+  // Track password field completion
+  await trackTestEvent(page, 'signup_password_completed');
+  
   // Take a screenshot to capture the completed form
   await page.screenshot({ path: 'test-results/signup-form-filled.png' });
   
@@ -162,6 +185,9 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
   // Move mouse to the submit button
   await page.getByRole('button', { name: /sign up/i }).hover();
   await page.waitForTimeout(300 + Math.random() * 200);
+  
+  // Track form submission attempt
+  await trackTestEvent(page, 'signup_form_submitted');
   
   // 5. Complete sign up by submitting the form
   await page.getByRole('button', { name: /sign up/i }).click();
@@ -174,13 +200,33 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
       page.waitForSelector('text=Sign Up Error', { timeout: 20000 })
     ]);
     
-    // After successful signup, identify the user in Highlight
+    // After successful signup, identify the user in LaunchDarkly
     // This matches how the app would identify the user after signup
     if (page.url().includes('/profile')) {
       await identifyTestUser(page, testEmail, testId);
       
+      // Mirror the backend signup event
+      await mirrorBackendEvent(page, 'signup', {
+        email: testEmail,
+        userId: testId,
+        method: 'email_password'
+      });
+      
+      // Track successful signup
+      await trackTestEvent(page, 'signup_success', {
+        email: testEmail,
+        userId: testId
+      });
+      
       // Add some realistic mouse movements on the profile page
       await realisticMouseMovement(page, 8);
+    } else {
+      // Track signup error
+      await trackTestEvent(page, 'signup_error');
+      await mirrorBackendEvent(page, 'error', {
+        type: 'signup_failure',
+        email: testEmail
+      });
     }
     
     // Take a screenshot of the result
@@ -201,10 +247,11 @@ test('sign up flow with realistic typing', async ({ page, context }) => {
     
   } catch (error) {
     console.error('Error during sign up flow:', error);
+    await trackTestEvent(page, 'signup_flow_error', { error: String(error) });
   }
   
   // 6. Gracefully shut down to ensure telemetry is sent
-  await shutdownHighlight(page);
+  await shutdownLaunchDarkly(page);
 });
 
 // Helper function to create realistic mouse movements

@@ -1,19 +1,27 @@
 import { test, expect } from '@playwright/test';
 import { 
-  initializeHighlightForTests, 
+  initializeLaunchDarklyForTests, 
   identifyTestUser, 
-  shutdownHighlight 
-} from './highlightHelper';
+  shutdownLaunchDarkly,
+  mirrorBackendEvent,
+  trackTestEvent
+} from './launchdarklyHelper';
 
 // Test that navigates through the login flow with realistic typing
 test('login flow with realistic interaction', async ({ page }) => {
-  // Initialize Highlight for this test - identical to how the app initializes it
-  await initializeHighlightForTests(page);
+  // Initialize LaunchDarkly observability for this test
+  await initializeLaunchDarklyForTests(page);
   
   // Generate a unique test email
   const testEmail = `user-${Date.now().toString().slice(-6)}@example.com`;
   const testPassword = 'SecureP@ssw0rd!';
   const testId = Date.now().toString();
+  
+  // Track test start event
+  await trackTestEvent(page, 'test_login_started', {
+    email: testEmail,
+    testId: testId
+  });
   
   // 1. Start on the home page
   await page.goto('/');
@@ -36,12 +44,15 @@ test('login flow with realistic interaction', async ({ page }) => {
   // Ensure we're on the login page
   await expect(page.url()).toContain('/login');
   
+  // Track form view event
+  await trackTestEvent(page, 'login_form_viewed');
+  
   // Simulate thinking about form fields
   await page.waitForTimeout(1000 + Math.random() * 600);
   
-  // 3. Clear any existing text in email and password fields
+  // 3. Clear existing text and simulate realistic typing
   const emailInput = page.getByLabel('Email');
-  const passwordInput = page.getByLabel('Password');
+  const passwordInput = page.locator('#password'); // Use ID selector instead of label
   
   await emailInput.click({ clickCount: 3 }); // Triple-click selects all text
   await emailInput.press('Backspace');
@@ -52,6 +63,9 @@ test('login flow with realistic interaction', async ({ page }) => {
   await passwordInput.click({ clickCount: 3 });
   await passwordInput.press('Backspace');
   
+  // Track form interaction start
+  await trackTestEvent(page, 'login_form_interaction_started');
+  
   // 4. Simulate realistic typing for email and password fields
   await emailInput.focus();
   for (const char of testEmail) {
@@ -59,6 +73,9 @@ test('login flow with realistic interaction', async ({ page }) => {
     // Random delay between 30-100ms to simulate realistic typing
     await page.waitForTimeout(30 + Math.random() * 70);
   }
+  
+  // Track email field completion
+  await trackTestEvent(page, 'login_email_completed');
   
   // Pause after completing the email field
   await page.waitForTimeout(400 + Math.random() * 300);
@@ -70,14 +87,20 @@ test('login flow with realistic interaction', async ({ page }) => {
     await page.waitForTimeout(30 + Math.random() * 70);
   }
   
+  // Track password field completion
+  await trackTestEvent(page, 'login_password_completed');
+  
   // Take a screenshot to capture the completed form
   await page.screenshot({ path: 'test-results/login-form-filled.png' });
   
   // Pause before submitting the form (like a real user reviewing their input)
   await page.waitForTimeout(800 + Math.random() * 500);
   
+  // Track form submission attempt
+  await trackTestEvent(page, 'login_form_submitted');
+  
   // 5. Complete login by submitting the form
-  await page.getByRole('button', { name: 'Log In' }).click();
+  await page.getByRole('button', { name: /sign in/i }).click();
   
   // Wait for navigation or error state
   try {
@@ -90,6 +113,20 @@ test('login flow with realistic interaction', async ({ page }) => {
       if (currentUrl.includes('/dashboard') || currentUrl.includes('/profile')) {
         // Identify user after successful login, just like the app would
         await identifyTestUser(page, testEmail, testId);
+        
+        // Mirror the backend login event
+        await mirrorBackendEvent(page, 'login', {
+          email: testEmail,
+          userId: testId,
+          method: 'email_password'
+        });
+        
+        // Track successful login
+        await trackTestEvent(page, 'login_success', {
+          email: testEmail,
+          userId: testId
+        });
+        
         success = true;
         break;
       }
@@ -97,6 +134,12 @@ test('login flow with realistic interaction', async ({ page }) => {
       // Check for error message
       const hasError = await page.locator('text=Error').isVisible().catch(() => false);
       if (hasError) {
+        // Track login error
+        await trackTestEvent(page, 'login_error');
+        await mirrorBackendEvent(page, 'error', {
+          type: 'login_failure',
+          email: testEmail
+        });
         break;
       }
       
@@ -118,10 +161,11 @@ test('login flow with realistic interaction', async ({ page }) => {
     }
   } catch (error) {
     console.error('Error during login flow:', error);
+    await trackTestEvent(page, 'login_flow_error', { error: String(error) });
   }
   
   // 6. Gracefully shut down to ensure telemetry is sent
-  await shutdownHighlight(page);
+  await shutdownLaunchDarkly(page);
 });
 
 // Helper function to create realistic mouse movements

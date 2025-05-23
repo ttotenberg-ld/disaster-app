@@ -1,9 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 import { 
-  initializeHighlightForTests, 
+  initializeLaunchDarklyForTests, 
   identifyTestUser, 
-  shutdownHighlight 
-} from './highlightHelper';
+  shutdownLaunchDarkly,
+  mirrorBackendEvent,
+  trackTestEvent
+} from './launchdarklyHelper';
 
 // Default branding values (used if environment variables are not set)
 const DEFAULT_BRAND_LOGO = 'https://img.logo.dev/launchdarkly.com?token=pk_CV1Cwkm5RDmroDFjScYQRA';
@@ -66,8 +68,8 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       }
     ]);
     
-    // Initialize Highlight for this test - identical to how the app initializes it
-    await initializeHighlightForTests(page);
+    // Initialize LaunchDarkly for this test - identical to how the app initializes it
+    await initializeLaunchDarklyForTests(page);
     
     // Generate a unique test email that looks like a real email
     const names = ['john', 'mary', 'david', 'sarah', 'mike', 'jennifer', 'robert', 'lisa'];
@@ -79,6 +81,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     const testEmail = `${randomName}${randomNumber}@${randomDomain}`;
     const testPassword = 'SecureP@ss' + Math.floor(Math.random() * 1000);
     const testId = Date.now().toString();
+    
+    // Track test start event
+    await trackTestEvent(page, 'test_e2e_started', {
+      email: testEmail,
+      testId: testId,
+      brandingLogo: logoUrl,
+      brandingColor: primaryColor
+    });
     
     // 1. Start on the home page (Will initially load with defaults)
     await page.goto('/');
@@ -104,6 +114,13 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Add a pause for React re-render and CSS application
     await page.waitForTimeout(500);
     console.log('[Test] Paused briefly after triggering branding update.');
+    
+    // Track branding application
+    await trackTestEvent(page, 'branding_applied', {
+      logoUrl: logoUrl,
+      primaryColor: primaryColor
+    });
+    
     // *** END APPLY BRANDING ***
 
     // *** VERIFICATION STEP: Wait for CSS to be applied ***
@@ -124,8 +141,11 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     console.log(`[Test] localStorage check - Logo: ${storedLogo}, Color: ${storedColor}`);
     // *** END DIAGNOSTIC STEP ***
     
-    // Take a screenshot (but not in a way that would affect Highlight)
+    // Take a screenshot (but not in a way that would affect LaunchDarkly)
     await page.screenshot({ path: 'test-results/e2e-home.png' });
+    
+    // Track homepage view
+    await trackTestEvent(page, 'homepage_viewed');
     
     // 2. Navigate to the signup screen
     // Check if signup link is available and visible
@@ -144,6 +164,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         // Slight pause after hovering
         await page.waitForTimeout(100 + Math.random() * 100);
         
+        // Track navigation attempt
+        await trackTestEvent(page, 'signup_navigation_started');
+        
         // Click the link
         await signupLink.click();
       } else {
@@ -158,6 +181,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Ensure we're on the signup page
     await expect(page.url()).toContain('/signup');
     
+    // Track signup form view
+    await trackTestEvent(page, 'signup_form_viewed');
+    
     // Simulate looking at the signup form before starting to fill it - maybe some mouse jitters
     await realisticMouseMovement(page, 1, 2); // Add short mouse movement here
     await page.waitForTimeout(1800 + Math.random() * 1200);
@@ -166,7 +192,8 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     
     // 3. Clear the existing text in email and password fields
     const emailInput = page.getByLabel('Email');
-    const passwordInput = page.getByLabel('Password');
+    const passwordInput = page.locator('#password'); // Use ID selector instead of label
+    const confirmPasswordInput = page.locator('#confirmPassword'); // Add confirm password field
     
     // Click directly on fields instead of complex mouse movements
     await emailInput.click({ clickCount: 3 }); // Triple-click selects all text
@@ -178,6 +205,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     await passwordInput.click({ clickCount: 3 });
     await passwordInput.press('Backspace');
     
+    // Clear confirm password field too
+    await page.waitForTimeout(300 + Math.random() * 200);
+    await confirmPasswordInput.click({ clickCount: 3 });
+    await confirmPasswordInput.press('Backspace');
+    
+    // Track form interaction start
+    await trackTestEvent(page, 'signup_form_interaction_started');
+    
     // 4. Simulate realistic typing for email and password fields - simplified
     await emailInput.focus();
     
@@ -188,6 +223,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       // Variable delay between keystrokes - slower typing
       await page.waitForTimeout(50 + Math.random() * 100);
     }
+    
+    // Track email completion
+    await trackTestEvent(page, 'signup_email_completed');
     
     // Pause after completing the email field (like a real user would) - much slower
     await page.waitForTimeout(1200 + Math.random() * 800);
@@ -201,6 +239,25 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       // Much slower typing
       await page.waitForTimeout(60 + Math.random() * 120);
     }
+    
+    // Track password completion
+    await trackTestEvent(page, 'signup_password_completed');
+    
+    // Pause between password and confirm password
+    await page.waitForTimeout(800 + Math.random() * 600);
+    
+    // Now fill in the confirm password field
+    await confirmPasswordInput.focus();
+    
+    // Type the same password in confirm field - slightly faster since it's the same
+    for (const char of testPassword) {
+      await confirmPasswordInput.press(char);
+      // Slightly faster typing for confirm password
+      await page.waitForTimeout(40 + Math.random() * 80);
+    }
+    
+    // Track confirm password completion
+    await trackTestEvent(page, 'signup_confirm_password_completed');
     
     // Take a screenshot to capture the completed form
     await page.screenshot({ path: 'test-results/e2e-signup-form-filled.png' });
@@ -217,6 +274,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       await naturalMouseMovementToElement(page, signupButtonBox);
     }
     
+    // Track form submission
+    await trackTestEvent(page, 'signup_form_submitted');
+    
     // Click directly without natural movement to simplify - Changed to use the button directly
     await signupButton.click();
     
@@ -228,20 +288,44 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         page.waitForSelector('text=Sign Up Error', { timeout: 10000 })
       ]);
       
-      // After successful signup, identify the user in Highlight
+      // After successful signup, identify the user in LaunchDarkly
       // This matches how the app would identify the user after signup
       if (page.url().includes('/profile')) {
         await identifyTestUser(page, testEmail, testId);
         
+        // Mirror the backend signup event
+        await mirrorBackendEvent(page, 'signup', {
+          email: testEmail,
+          userId: testId,
+          method: 'email_password'
+        });
+        
+        // Track successful signup
+        await trackTestEvent(page, 'signup_success', {
+          email: testEmail,
+          userId: testId
+        });
+        
         // Reduced time viewing profile
         await page.waitForTimeout(500 + Math.random() * 500);
+      } else {
+        // Track signup error
+        await trackTestEvent(page, 'signup_error');
+        await mirrorBackendEvent(page, 'error', {
+          type: 'signup_failure',
+          email: testEmail
+        });
       }
     } catch (error) {
       console.error('Error during sign up flow:', error);
+      await trackTestEvent(page, 'signup_flow_error', { error: String(error) });
     }
     
     // 4. After signing up, click on the logo in the top left to navigate back to the homepage
     try {
+      // Track homepage navigation attempt
+      await trackTestEvent(page, 'homepage_navigation_started');
+      
       // First, find the logo which is typically in the header or navbar area
       // Try multiple selectors since logo placement can vary in UI frameworks
       const logo = await page.locator('a').filter({ hasText: /home|logo/i }).first().or(
@@ -263,10 +347,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       // Ensure we're on the homepage - check only path part
       await expect(page.url()).toContain('/');
       
+      // Track successful homepage return
+      await trackTestEvent(page, 'homepage_navigation_success');
+      
       // Simulate user taking time to look at the homepage again - much slower
       await page.waitForTimeout(2500 + Math.random() * 1500);
     } catch (error) {
       console.error('Error navigating back to homepage:', error);
+      await trackTestEvent(page, 'homepage_navigation_error', { error: String(error) });
       // If navigation failed, manually navigate to homepage
       await page.goto('/');
     }
@@ -274,6 +362,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // 5. On the homepage, scroll down to the payment plans
     // Scroll down to pricing simply (reduced complexity)
     await page.evaluate(() => window.scrollTo(0, 1500));
+    
+    // Track pricing view
+    await trackTestEvent(page, 'pricing_section_viewed');
     
     // Wait a bit to simulate the user looking at pricing plans - much slower
     await page.waitForTimeout(3000 + Math.random() * 2000);
@@ -290,6 +381,12 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         const randomPlanIndex = Math.floor(Math.random() * planButtons.length);
         const selectedPlan = planButtons[randomPlanIndex];
         
+        // Track plan selection
+        await trackTestEvent(page, 'pricing_plan_selected', {
+          planIndex: randomPlanIndex,
+          totalPlans: planButtons.length
+        });
+        
         // Add natural movement towards the selected plan button
         const planBox = await selectedPlan.boundingBox();
         if (planBox) {
@@ -305,8 +402,53 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         // Ensure we're on the payment page
         await expect(page.url()).toContain('/payment');
         
+        // Track payment page view
+        await trackTestEvent(page, 'payment_page_viewed');
+        
         // Simulate user looking at the payment page - much slower
         await page.waitForTimeout(3500 + Math.random() * 2000);
+        
+        // Fill out the payment form before clicking pay
+        try {
+          // Look for name on card field
+          const nameOnCardInput = page.locator('input[name="nameOnCard"], input[placeholder*="Name"], input[aria-label*="Name"]').first();
+          const nameOnCardVisible = await nameOnCardInput.isVisible().catch(() => false);
+          
+          if (nameOnCardVisible) {
+            await nameOnCardInput.focus();
+            // Generate a realistic name for the card
+            const cardName = `${testEmail.split('@')[0].replace(/[0-9]/g, '').toUpperCase()} TESTUSER`;
+            
+            // Type the name on card
+            for (const char of cardName) {
+              await nameOnCardInput.press(char);
+              await page.waitForTimeout(40 + Math.random() * 80);
+            }
+            
+            await trackTestEvent(page, 'payment_name_completed');
+            await page.waitForTimeout(600 + Math.random() * 400);
+          }
+          
+          // Look for email field on payment form
+          const paymentEmailInput = page.locator('input[name="email"], input[type="email"]').last(); // Use last to avoid signup email field
+          const paymentEmailVisible = await paymentEmailInput.isVisible().catch(() => false);
+          
+          if (paymentEmailVisible) {
+            await paymentEmailInput.focus();
+            
+            // Type the same email as used for signup
+            for (const char of testEmail) {
+              await paymentEmailInput.press(char);
+              await page.waitForTimeout(30 + Math.random() * 70);
+            }
+            
+            await trackTestEvent(page, 'payment_email_completed');
+            await page.waitForTimeout(800 + Math.random() * 600);
+          }
+        } catch (error) {
+          console.log('[Test] Optional payment form fields not found or not fillable:', error);
+          await trackTestEvent(page, 'payment_form_fields_skipped', { reason: 'fields_not_found' });
+        }
         
         // Take a screenshot
         await page.screenshot({ path: 'test-results/e2e-payment.png' });
@@ -326,21 +468,41 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         // Short wait before clicking
         await page.waitForTimeout(1500 + Math.random() * 1000);
         
+        // Track payment attempt
+        await trackTestEvent(page, 'payment_attempt_started');
+        await mirrorBackendEvent(page, 'payment', {
+          email: testEmail,
+          userId: testId,
+          planIndex: randomPlanIndex
+        });
+        
         // Click the pay button
         await payButton.click();
         
         // Wait for processing - much slower
         await page.waitForTimeout(2500 + Math.random() * 1500);
         
+        // Track payment completion
+        await trackTestEvent(page, 'payment_flow_completed');
+        
         // Take a final screenshot
         await page.screenshot({ path: 'test-results/e2e-payment-complete.png' });
+      } else {
+        await trackTestEvent(page, 'pricing_plans_not_found');
       }
     } catch (error) {
       console.error('Error during payment selection:', error);
+      await trackTestEvent(page, 'payment_flow_error', { error: String(error) });
     }
     
+    // Track test completion
+    await trackTestEvent(page, 'test_e2e_completed', {
+      email: testEmail,
+      testId: testId
+    });
+    
     // 6. Gracefully shut down to ensure telemetry is sent
-    await shutdownHighlight(page);
+    await shutdownLaunchDarkly(page);
     
     // Mark test as completed successfully
     testCompleted = true;
