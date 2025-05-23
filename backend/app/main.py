@@ -52,8 +52,10 @@ H = highlight_io.H(
 	"ejlj47ny",
 	instrument_logging=True,
 	service_name="disaster-app",
-	service_version="1.0.7",
+	service_version="1.0.8",
 	environment="production",
+    otlp_endpoint="https://otel.observability.app.launchdarkly.com:4317/",
+    debug=True
 )
 
 app = FastAPI(title="Disaster App")
