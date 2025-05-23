@@ -7,9 +7,10 @@ const DEFAULT_FALLBACK_LOGO_URL = 'https://img.logo.dev/launchdarkly.com?token=p
 interface LogoProps {
   flags?: LDFlagSet;
   overrideSrc?: string | null; // Allow null to differentiate from undefined
+  className?: string; // Add optional className prop
 }
 
-const LogoInternal: React.FC<LogoProps> = ({ flags = {}, overrideSrc }) => {
+const LogoInternal: React.FC<LogoProps> = ({ flags = {}, overrideSrc, className }) => {
   const [currentSrc, setCurrentSrc] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
 
@@ -50,7 +51,7 @@ const LogoInternal: React.FC<LogoProps> = ({ flags = {}, overrideSrc }) => {
       <img
         src={currentSrc}
         alt="Company Logo"
-        className="h-8 object-contain" // Use object-contain
+        className={className || "h-8 w-auto object-contain"} // Apply className or default
         onError={handleError}
       />
     );

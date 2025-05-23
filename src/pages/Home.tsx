@@ -2,10 +2,16 @@ import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Shield, Zap, RefreshCw } from 'lucide-react';
 import { PricingPlans } from '../components/PricingPlans';
+import Logo from '../components/Logo';
+import { useBrandingStore } from '../store/branding';
+
+// Defaults if localStorage is empty - reusing from Layout for consistency
+const DEFAULT_FALLBACK_LOGO_URL = 'https://img.logo.dev/launchdarkly.com?token=pk_CV1Cwkm5RDmroDFjScYQRA';
 
 export const Home = () => {
   const location = useLocation();
   const pricingRef = useRef<HTMLDivElement>(null);
+  const { logoUrl } = useBrandingStore();
   
   // Scroll to pricing if state indicates to do so
   useEffect(() => {
@@ -20,6 +26,12 @@ export const Home = () => {
         <div className="relative z-10 pb-8 bg-gray-50 sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
           <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
             <div className="sm:text-center lg:text-left">
+              <div className="mb-6 flex justify-center lg:justify-start">
+                <Logo 
+                  overrideSrc={logoUrl || DEFAULT_FALLBACK_LOGO_URL} 
+                  className="h-20 w-auto object-contain"
+                />
+              </div>
               <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                 <span className="block">Transform your</span>
                 <span className="block custom-primary-text">digital experience</span>
