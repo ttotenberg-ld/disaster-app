@@ -31,7 +31,13 @@ export const createUserContext = (email: string, userId: string): LDContext => {
 export const getLDOptions = (): LDOptions => {
   return {
     plugins: [
-      new Observability(OBSERVABILITY_PROJECT_ID),
+      new Observability(OBSERVABILITY_PROJECT_ID, {
+        tracingOrigins: true, // attribute frontend requests to backend domains
+        networkRecording: {
+          enabled: true,
+          recordHeadersAndBody: true
+        }
+      }),
       new SessionReplay(OBSERVABILITY_PROJECT_ID)
     ]
   };
