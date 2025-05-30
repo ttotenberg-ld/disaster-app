@@ -6,7 +6,8 @@ import {
   mirrorBackendEvent,
   trackTestEvent,
   getRecordedErrors,
-  testObservabilityFeatures
+  testObservabilityFeatures,
+  recordTestError
 } from './launchdarklyHelper';
 
 // Default branding values (used if environment variables are not set)
@@ -216,6 +217,13 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Load the page normally
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForURL('/', { timeout: 15000 });
+    
+    // Simulate realistic page load error
+    await recordTestError(page, 'Failed to load navigation component within timeout', 'Navigation component did not render properly', {
+      component: 'header-navigation',
+      timeout: 5000,
+      endpoint: '/api/navigation-config'
+    });
     
     // Wait for page elements to be available but before branding fully loads
     const getStartedButton = page.locator('main a[href="/signup"]:has-text("Get started")');
@@ -577,6 +585,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Track form submission
     await trackTestEvent(page, 'signup_form_submitted');
     
+    // Simulate realistic signup API error
+    await recordTestError(page, 'Internal server error during user registration', 'Database connection timeout while creating user account', {
+      statusCode: 500,
+      endpoint: '/api/auth/signup',
+      errorType: 'database_timeout',
+      retryAttempt: 1
+    });
+    
     // Simulate form submission delays/retries
     await simulateAPIError(page, 'signup_service_congestion', true);
     
@@ -614,6 +630,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
           email: testEmail,
           userId: testId,
           completionTime: Date.now() - sessionStartTime
+        });
+        
+        // Simulate realistic profile data loading error
+        await recordTestError(page, 'Unable to fetch user profile data', 'Profile service returned 404 for user preferences', {
+          statusCode: 404,
+          endpoint: '/api/user/profile/preferences',
+          userId: testId,
+          resource: 'user_preferences'
         });
         
         // Simulate user profile loading issues
@@ -777,6 +801,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         const initialErrors = await getRecordedErrors(page);
         const initialErrorCount = initialErrors.length;
         
+        // Simulate realistic dashboard data loading error
+        await recordTestError(page, 'Failed to retrieve analytics dashboard data', 'Analytics service connection refused', {
+          statusCode: 503,
+          endpoint: '/api/analytics/dashboard',
+          errorType: 'service_unavailable',
+          serviceName: 'analytics-service'
+        });
+        
         // Test Refresh Data (may generate API errors)
         const refreshButton = page.locator('button:has-text("Refresh Data")');
         if (await refreshButton.isVisible()) {
@@ -882,6 +914,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Track pricing view
     await trackTestEvent(page, 'pricing_section_viewed');
     
+    // Simulate realistic pricing data error
+    await recordTestError(page, 'Pricing configuration service temporarily unavailable', 'Unable to load current pricing plans from backend', {
+      statusCode: 502,
+      endpoint: '/api/pricing/plans',
+      errorType: 'bad_gateway',
+      upstreamService: 'pricing-config-service'
+    });
+    
     // Simulate pricing API data loading delays
     await simulateAPIError(page, 'pricing_api_slow_response', true);
     
@@ -949,6 +989,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         try {
           // Simulate form security scanning
           await trackTestEvent(page, 'payment_form_security_scan');
+          
+          // Simulate realistic payment form validation error
+          await recordTestError(page, 'Payment form validation failed', 'Required billing address fields not found in form schema', {
+            component: 'payment-form',
+            validationError: 'missing_required_fields',
+            missingFields: ['billingAddress', 'postalCode'],
+            formVersion: '2.1.3'
+          });
           
           // Look for name on card field
           const nameOnCardInput = page.locator('input[name="nameOnCard"], input[placeholder*="Name"], input[aria-label*="Name"]').first();
@@ -1055,11 +1103,17 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
           timestamp: Date.now()
         });
         
+        // Simulate realistic payment processing error
+        await recordTestError(page, 'Payment gateway communication failure', 'HTTP timeout while processing payment with external provider', {
+          statusCode: 408,
+          endpoint: '/api/payments/process',
+          paymentProvider: 'stripe',
+          errorType: 'gateway_timeout',
+          transactionId: `txn_${Date.now()}`
+        });
+        
         // Simulate payment processing time - reduced for test efficiency
         await page.waitForTimeout(2000 + Math.random() * 1500); // Reduced from 3000 + Math.random() * 2000
-        
-        // Simulate payment processing delays
-        await simulateAPIError(page, 'payment_processing_delay', true);
         
         // Click the pay button
         await payButton.click();
@@ -1158,6 +1212,14 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       pagesVisited: ['home', 'signup', 'profile', 'pricing', 'payment'],
       errorsEncountered: 'various_simulated',
       testSuccess: true
+    });
+    
+    // Simulate realistic session management error
+    await recordTestError(page, 'Session storage cleanup failed', 'Unable to clear expired session tokens from local storage', {
+      component: 'session-manager',
+      errorType: 'cleanup_failure',
+      expiredTokens: 3,
+      storageQuotaExceeded: false
     });
     
     // *** FINAL ERROR RECORDING VERIFICATION ***

@@ -474,6 +474,51 @@ export async function verifyTracing(page: Page): Promise<boolean> {
 }
 
 /**
+ * Record a specific test error with custom message and optional payload
+ * This is a wrapper around the error recording functionality that allows
+ * passing in specific error details for testing different error scenarios
+ */
+export async function recordTestError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    // Record the specific error
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const testError = new Error(errorMessage);
+          ldObserve.recordError(testError, customMessage, payload);
+          console.log(`[Test] Recorded custom error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+
+    // Wait a moment for the error to be recorded
+    await page.waitForTimeout(100);
+
+    // Verify the error was recorded by checking the recorded errors
+    const errors = await getRecordedErrors(page);
+    const wasRecorded = Array.isArray(errors) && errors.length > 0;
+    
+    if (wasRecorded) {
+      console.log(`[Test] Successfully recorded error: ${errorMessage}`);
+    } else {
+      console.warn(`[Test] Failed to record error: ${errorMessage}`);
+    }
+
+    return wasRecorded;
+  } catch (error) {
+    console.error('[Test] Error recording custom test error:', error);
+    return false;
+  }
+}
+
+/**
  * Verify that error recording is working by triggering a test error
  */
 export async function verifyErrorRecording(page: Page): Promise<boolean> {
