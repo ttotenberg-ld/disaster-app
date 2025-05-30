@@ -31,6 +31,11 @@ function ConfigurationPage() {
     const [error, setError] = useState<string | null>(null);
     const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null); // State for confirmation
 
+    // State for color picker modal
+    const [colorPickerOpen, setColorPickerOpen] = useState(false);
+    const [colorPickerType, setColorPickerType] = useState<'primary' | 'contrast'>('primary');
+    const [tempColor, setTempColor] = useState<string>('');
+
     // State for test running
     const [testStatus, setTestStatus] = useState<TestStatus>({ status: 'idle', message: null });
     const [testRunId, setTestRunId] = useState<string | null>(null);
@@ -42,7 +47,8 @@ function ConfigurationPage() {
         primaryColor: appliedPrimaryColor,
         contrastColor: appliedContrastColor,
         domain: appliedDomain,
-        applyBranding // Action to update branding
+        applyBranding, // Action to update branding
+        setContrastColor // Action to set contrast color manually
     } = useBrandingStore();
 
     // Debounced search function
@@ -118,6 +124,41 @@ function ConfigurationPage() {
             setConfirmationMessage(errorMsg);
             setTimeout(() => setConfirmationMessage(null), 5000);
         }
+    };
+
+    // Color picker functions
+    const openColorPicker = (type: 'primary' | 'contrast') => {
+        setColorPickerType(type);
+        const currentColor = type === 'primary' ? appliedPrimaryColor : appliedContrastColor;
+        setTempColor(currentColor || '#000000');
+        setColorPickerOpen(true);
+    };
+
+    const closeColorPicker = () => {
+        setColorPickerOpen(false);
+        setTempColor('');
+    };
+
+    const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setTempColor(e.target.value);
+    };
+
+    const confirmColorChange = () => {
+        if (colorPickerType === 'primary') {
+            // Update primary color and regenerate contrast color
+            applyBranding({
+                logoUrl: appliedLogoUrl || '',
+                primaryColor: tempColor,
+                domain: appliedDomain || ''
+            });
+        } else {
+            // Use the dedicated action for contrast color
+            setContrastColor(tempColor);
+        }
+        
+        setConfirmationMessage(`${colorPickerType === 'primary' ? 'Primary' : 'Contrast'} color updated successfully!`);
+        setTimeout(() => setConfirmationMessage(null), 3000);
+        closeColorPicker();
     };
 
     // Function to poll for test status
@@ -236,7 +277,16 @@ function ConfigurationPage() {
                                     style={{ backgroundColor: appliedPrimaryColor || 'transparent' }}
                                     className="w-5 h-5 rounded border border-gray-400 mr-1"
                                 ></div>
-                                <span className="text-sm font-mono text-gray-700">{appliedPrimaryColor || 'N/A'}</span>
+                                <span className="text-sm font-mono text-gray-700 mr-2">{appliedPrimaryColor || 'N/A'}</span>
+                                <button
+                                    onClick={() => openColorPicker('primary')}
+                                    className="text-gray-500 hover:text-gray-700 p-1"
+                                    title="Edit primary color"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
                             </div>
                             <div className="flex items-center mt-1">
                                 <p className="text-sm mr-2 text-gray-600">Contrast:</p>
@@ -244,7 +294,16 @@ function ConfigurationPage() {
                                     style={{ backgroundColor: appliedContrastColor || 'transparent' }}
                                     className="w-5 h-5 rounded border border-gray-400 mr-1"
                                 ></div>
-                                <span className="text-sm font-mono text-gray-700">{appliedContrastColor || 'N/A'}</span>
+                                <span className="text-sm font-mono text-gray-700 mr-2">{appliedContrastColor || 'N/A'}</span>
+                                <button
+                                    onClick={() => openColorPicker('contrast')}
+                                    className="text-gray-500 hover:text-gray-700 p-1"
+                                    title="Edit contrast color"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -345,6 +404,68 @@ function ConfigurationPage() {
                     {/* {testStatus.output && <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">{testStatus.output}</pre>} */} 
                 </div>
             </div>
+
+            {/* Color Picker Modal */}
+            {colorPickerOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold mb-4">
+                            Edit {colorPickerType === 'primary' ? 'Primary' : 'Contrast'} Color
+                        </h3>
+                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Select Color
+                            </label>
+                            <div className="flex items-center space-x-4">
+                                <input
+                                    type="color"
+                                    value={tempColor}
+                                    onChange={handleColorChange}
+                                    className="w-20 h-12 border border-gray-300 rounded cursor-pointer"
+                                />
+                                <div className="flex-1">
+                                    <input
+                                        type="text"
+                                        value={tempColor}
+                                        onChange={handleColorChange}
+                                        placeholder="#000000"
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Preview
+                            </label>
+                            <div className="flex items-center space-x-2">
+                                <div
+                                    style={{ backgroundColor: tempColor }}
+                                    className="w-12 h-12 rounded border border-gray-400"
+                                ></div>
+                                <span className="text-sm font-mono text-gray-700">{tempColor}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={closeColorPicker}
+                                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmColorChange}
+                                className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+                            >
+                                Apply Color
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

@@ -15,6 +15,7 @@ interface BrandingState {
   domain: string; // No longer null initially
   // isInitialized: boolean; // Removed
   applyBranding: (details: { logoUrl: string; primaryColor: string; domain: string }) => void;
+  setContrastColor: (contrastColor: string) => void;
   loadInitialBranding: () => void;
 }
 
@@ -45,15 +46,30 @@ export const useBrandingStore = create<BrandingState>((set) => ({
     }
   },
 
+  // Action to manually set contrast color
+  setContrastColor: (contrastColor) => {
+    try {
+      localStorage.setItem('demoBrandContrastColor', contrastColor);
+      set((state) => ({
+        ...state,
+        contrastColor: contrastColor,
+      }));
+    } catch (error) {
+      console.error("Error setting contrast color:", error);
+    }
+  },
+
   // Action to load initial state from localStorage (overwrites defaults if found)
   loadInitialBranding: () => {
       try {
         const storedLogo = localStorage.getItem('demoBrandLogo');
         const storedColor = localStorage.getItem('demoBrandColor');
         const storedDomain = localStorage.getItem('demoBrandDomain');
+        const storedContrastColor = localStorage.getItem('demoBrandContrastColor');
 
         if (storedLogo && storedColor && storedDomain) {
-            const contrast = getContrastColor(storedColor);
+            // Use stored contrast color if available, otherwise calculate from primary
+            const contrast = storedContrastColor || getContrastColor(storedColor);
             set({
                 logoUrl: storedLogo,
                 primaryColor: storedColor,
