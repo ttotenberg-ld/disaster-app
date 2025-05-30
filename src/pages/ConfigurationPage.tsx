@@ -36,6 +36,11 @@ function ConfigurationPage() {
     const [colorPickerType, setColorPickerType] = useState<'primary' | 'contrast'>('primary');
     const [tempColor, setTempColor] = useState<string>('');
 
+    // State for logo upload modal
+    const [logoUploadOpen, setLogoUploadOpen] = useState(false);
+    const [tempLogoUrl, setTempLogoUrl] = useState<string>('');
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+
     // State for test running
     const [testStatus, setTestStatus] = useState<TestStatus>({ status: 'idle', message: null });
     const [testRunId, setTestRunId] = useState<string | null>(null);
@@ -161,6 +166,71 @@ function ConfigurationPage() {
         closeColorPicker();
     };
 
+    // Logo upload functions
+    const openLogoUpload = () => {
+        setTempLogoUrl(appliedLogoUrl || '');
+        setLogoFile(null);
+        setLogoUploadOpen(true);
+    };
+
+    const closeLogoUpload = () => {
+        setLogoUploadOpen(false);
+        setTempLogoUrl('');
+        setLogoFile(null);
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                setConfirmationMessage('Error: Please select an image file.');
+                setTimeout(() => setConfirmationMessage(null), 3000);
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setConfirmationMessage('Error: File size must be less than 5MB.');
+                setTimeout(() => setConfirmationMessage(null), 3000);
+                return;
+            }
+
+            setLogoFile(file);
+            
+            // Create preview URL
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setTempLogoUrl(event.target?.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleLogoUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setTempLogoUrl(e.target.value);
+        setLogoFile(null); // Clear file when URL is manually entered
+    };
+
+    const confirmLogoChange = () => {
+        if (!tempLogoUrl) {
+            setConfirmationMessage('Error: Please provide a logo URL or select a file.');
+            setTimeout(() => setConfirmationMessage(null), 3000);
+            return;
+        }
+
+        // Update logo in branding store
+        applyBranding({
+            logoUrl: tempLogoUrl,
+            primaryColor: appliedPrimaryColor || '',
+            domain: appliedDomain || ''
+        });
+        
+        setConfirmationMessage('Logo updated successfully!');
+        setTimeout(() => setConfirmationMessage(null), 3000);
+        closeLogoUpload();
+    };
+
     // Function to poll for test status
     const pollTestStatus = useCallback(async (id: string) => {
         console.log(`Polling status for test ID: ${id}`);
@@ -264,11 +334,22 @@ function ConfigurationPage() {
                  <div className="mb-8 p-4 border border-gray-200 rounded-md bg-gray-50">
                     <h2 className="text-lg font-semibold mb-3 text-gray-800">Currently Applied Branding</h2>
                     <div className="flex items-center mb-3">
-                         <img 
-                             src={appliedLogoUrl} // Use store value
-                             alt="Current Logo" 
-                             className="w-16 h-16 mr-4 object-contain border border-gray-100 p-1 bg-white" 
-                         />
+                         <div className="relative">
+                             <img 
+                                 src={appliedLogoUrl} // Use store value
+                                 alt="Current Logo" 
+                                 className="w-24 h-24 mr-4 object-contain border border-gray-100 p-1 bg-white" 
+                             />
+                             <button
+                                 onClick={openLogoUpload}
+                                 className="absolute bottom-1 right-5 text-gray-500 hover:text-gray-700 bg-white rounded-full p-1 border border-gray-300 shadow-sm"
+                                 title="Edit logo"
+                             >
+                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                 </svg>
+                             </button>
+                         </div>
                         <div>
                             <p className="font-medium text-gray-900">{appliedDomain || 'Unknown'}</p>
                             <div className="flex items-center mt-1">
@@ -373,7 +454,7 @@ function ConfigurationPage() {
                     The test will run headlessly in the background. 
                     <br />
                     <br />
-                    <b>It will take approximately 3 minutes. Please do not close this page until it is complete.</b>
+                    <b>It will take approximately 2 minutes. Please do not close this page until it is complete.</b>
                 </p>
                 <button
                     onClick={handleRunTest}
@@ -461,6 +542,85 @@ function ConfigurationPage() {
                                 className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
                             >
                                 Apply Color
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Logo Upload Modal */}
+            {logoUploadOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold mb-4">
+                            Upload New Logo
+                        </h3>
+                        
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Upload Image File
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileSelect}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Supported formats: PNG, JPG, GIF, SVG. Max size: 5MB
+                            </p>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Or Enter Logo URL
+                            </label>
+                            <input
+                                type="url"
+                                value={tempLogoUrl}
+                                onChange={handleLogoUrlChange}
+                                placeholder="https://example.com/logo.png"
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+
+                        {tempLogoUrl && (
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Preview
+                                </label>
+                                <div className="flex items-center justify-center p-4 border border-gray-200 rounded-md bg-gray-50">
+                                    <img
+                                        src={tempLogoUrl}
+                                        alt="Logo preview"
+                                        className="max-w-full max-h-24 object-contain"
+                                        onError={() => {
+                                            setConfirmationMessage('Error: Unable to load image from URL.');
+                                            setTimeout(() => setConfirmationMessage(null), 3000);
+                                        }}
+                                    />
+                                </div>
+                                {logoFile && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        File: {logoFile.name} ({(logoFile.size / 1024).toFixed(1)} KB)
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={closeLogoUpload}
+                                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmLogoChange}
+                                disabled={!tempLogoUrl}
+                                className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Apply Logo
                             </button>
                         </div>
                     </div>

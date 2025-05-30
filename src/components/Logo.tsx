@@ -51,14 +51,14 @@ const LogoInternal: React.FC<LogoProps> = ({ flags = {}, overrideSrc, className 
       <img
         src={currentSrc}
         alt="Company Logo"
-        className={className || "h-8 w-auto object-contain"} // Apply className or default
+        className={className || "h-12 w-auto object-contain"} // Apply className or default
         onError={handleError}
       />
     );
   }
 
   // Should ideally not be reached if fallback logic is correct, but keep a minimal fallback
-  return <div className="h-8 w-20 bg-gray-200 rounded" aria-label="Logo placeholder"></div>;
+  return <div className="h-12 w-20 bg-gray-200 rounded" aria-label="Logo placeholder"></div>;
 };
 
 // Use the HOC
