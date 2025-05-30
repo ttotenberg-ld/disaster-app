@@ -1,6 +1,6 @@
 import { LDContext } from 'launchdarkly-react-client-sdk';
 import { LDOptions } from 'launchdarkly-js-client-sdk';
-import Observability from '@launchdarkly/observability';
+import Observability, { LDObserve } from '@launchdarkly/observability';
 import SessionReplay from '@launchdarkly/session-replay';
 
 // LaunchDarkly client-side ID
@@ -41,4 +41,84 @@ export const getLDOptions = (): LDOptions => {
       new SessionReplay(OBSERVABILITY_PROJECT_ID)
     ]
   };
+};
+
+/**
+ * Record an error to LaunchDarkly observability
+ * @param error - The error object or error message
+ * @param message - Optional custom message to provide context
+ * @param payload - Optional additional data to include with the error
+ */
+export const recordError = (
+  error: Error | string,
+  message?: string,
+  payload?: Record<string, unknown>
+): void => {
+  try {
+    // Convert string errors to Error objects
+    const errorObj = typeof error === 'string' ? new Error(error) : error;
+    
+    // Add timestamp and additional context to payload
+    const enhancedPayload = {
+      ...payload,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+      source: 'frontend'
+    };
+
+    // Record the error using LaunchDarkly observability
+    LDObserve.recordError(errorObj, message, enhancedPayload);
+    
+    // Also log to console for development
+    console.error('[LaunchDarkly Error]', {
+      error: errorObj,
+      message,
+      payload: enhancedPayload
+    });
+  } catch (recordingError) {
+    // Fallback logging if error recording fails
+    console.error('[LaunchDarkly Error Recording Failed]', recordingError);
+    console.error('[Original Error]', error);
+  }
+};
+
+/**
+ * Record a custom error with specific component context
+ * @param componentName - Name of the component where the error occurred
+ * @param errorMessage - Description of the error
+ * @param errorData - Additional error context data
+ */
+export const recordComponentError = (
+  componentName: string,
+  errorMessage: string,
+  errorData?: Record<string, unknown>
+): void => {
+  const error = new Error(errorMessage);
+  recordError(error, `Error in ${componentName}`, {
+    component: componentName,
+    ...errorData
+  });
+};
+
+/**
+ * Record an API error with request context
+ * @param endpoint - The API endpoint that failed
+ * @param status - HTTP status code
+ * @param errorMessage - Error message from the API
+ * @param requestData - Optional request data that caused the error
+ */
+export const recordApiError = (
+  endpoint: string,
+  status: number,
+  errorMessage: string,
+  requestData?: Record<string, unknown>
+): void => {
+  const error = new Error(`API Error: ${errorMessage}`);
+  recordError(error, `API request failed: ${endpoint}`, {
+    endpoint,
+    status,
+    requestData,
+    errorType: 'api_error'
+  });
 }; 

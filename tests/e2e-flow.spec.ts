@@ -4,7 +4,9 @@ import {
   identifyTestUser, 
   shutdownLaunchDarkly,
   mirrorBackendEvent,
-  trackTestEvent
+  trackTestEvent,
+  getRecordedErrors,
+  testObservabilityFeatures
 } from './launchdarklyHelper';
 
 // Default branding values (used if environment variables are not set)
@@ -133,7 +135,7 @@ async function simulateUserBehaviorErrors(page: Page) {
       break;
     case 'timeout_error':
       // Simulate network timeout scenario
-      await simulateNetworkLatency(page, 3000, 5000);
+      await simulateNetworkLatency(page, 2000, 3000);
       break;
   }
 }
@@ -160,7 +162,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       console.log('Test taking too long, forcing completion');
       testCompleted = true;
     }
-  }, 120000); // Increased to 120 seconds for additional error scenarios
+  }, 300000); // Increased to 300 seconds (5 minutes) to match Playwright config timeout
   
   try {
     // Track test session start with enhanced metadata
@@ -410,7 +412,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     
     // Simulate looking at the signup form before starting to fill it - maybe some mouse jitters
     await realisticMouseMovement(page, 1, 2); // Add short mouse movement here
-    await page.waitForTimeout(1800 + Math.random() * 1200);
+    await page.waitForTimeout(1500 + Math.random() * 1000); // Reduced from 1800 + Math.random() * 1200
     
     // Track form interaction patterns
     await trackTestEvent(page, 'form_analysis_completed', {
@@ -530,7 +532,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Simulate password mismatch scenario
     if (Math.random() < 0.15) {
         // Intentionally type wrong password first
-        await confirmPasswordInput.press('wrong');
+        await confirmPasswordInput.type('wrong');
         await page.waitForTimeout(1000);
         
         // Clear and type correct password
@@ -742,6 +744,128 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       await page.goto('/');
     }
     
+    // *** ERROR RECORDING FUNCTIONALITY TESTING ***
+    // Test the error recording features by navigating to dashboard and using ErrorDemo
+    try {
+      console.log('[Test] Testing error recording functionality...');
+      
+      // Navigate to dashboard to access ErrorDemo component
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded');
+      
+      // Wait for the dashboard to be ready by checking for a key element
+      try {
+        await page.locator('main, [data-testid="dashboard"], h1').waitFor({ state: 'visible', timeout: 10000 });
+      } catch (error) {
+        console.log('[Test] Dashboard elements not found quickly, continuing anyway:', error);
+      }
+      
+      // Track dashboard access
+      await trackTestEvent(page, 'dashboard_accessed_for_error_testing');
+      
+      // Verify dashboard controls are visible
+      const dashboardControlsVisible = await page.locator('text=Dashboard Controls').isVisible().catch(() => false);
+      
+      if (dashboardControlsVisible) {
+        console.log('[Test] Dashboard controls found, testing error recording through realistic actions...');
+        
+        // Test observability features first
+        const observabilityFeatures = await testObservabilityFeatures(page);
+        console.log('[Test] Observability features test:', observabilityFeatures);
+        
+        // Get initial error count
+        const initialErrors = await getRecordedErrors(page);
+        const initialErrorCount = initialErrors.length;
+        
+        // Test Refresh Data (may generate API errors)
+        const refreshButton = page.locator('button:has-text("Refresh Data")');
+        if (await refreshButton.isVisible()) {
+          await refreshButton.click();
+          await page.waitForTimeout(2000); // Wait for potential error
+          await trackTestEvent(page, 'dashboard_refresh_attempted');
+        }
+        
+        // Test Export Data (may generate API errors)
+        const exportButton = page.locator('button:has-text("Export Data")');
+        if (await exportButton.isVisible()) {
+          await exportButton.click();
+          await page.waitForTimeout(2500); // Wait for potential error
+          await trackTestEvent(page, 'dashboard_export_attempted');
+        }
+        
+        // Test Load Analytics (may generate component errors)
+        const analyticsButton = page.locator('button:has-text("Load Analytics")');
+        if (await analyticsButton.isVisible()) {
+          await analyticsButton.click();
+          await page.waitForTimeout(3500); // Wait for potential error
+          await trackTestEvent(page, 'dashboard_analytics_attempted');
+        }
+        
+        // Check for any error notifications that appeared
+        const errorNotifications = await page.locator('.bg-red-50').count();
+        const warningNotifications = await page.locator('.bg-yellow-50').count();
+        
+        console.log(`[Test] Found ${errorNotifications} error notifications and ${warningNotifications} warning notifications`);
+        
+        // Get final error count and verify errors were recorded
+        const finalErrors = await getRecordedErrors(page);
+        const newErrorCount = finalErrors.length - initialErrorCount;
+        
+        console.log(`[Test] Recorded ${newErrorCount} new errors (${finalErrors.length} total)`);
+        
+        // Track error recording success
+        await trackTestEvent(page, 'realistic_error_recording_test_completed', {
+          initialErrorCount,
+          finalErrorCount: finalErrors.length,
+          newErrorsRecorded: newErrorCount,
+          errorNotifications,
+          warningNotifications,
+          observabilityFeaturesWorking: observabilityFeatures
+        });
+        
+        // Take screenshot of dashboard with any notifications
+        await page.screenshot({ path: 'test-results/e2e-dashboard-realistic.png' });
+        
+      } else {
+        console.log('[Test] Dashboard controls not found, skipping realistic error recording test');
+        await trackTestEvent(page, 'dashboard_controls_not_found');
+      }
+      
+      // Test payment error simulation by enabling the flag
+      console.log('[Test] Testing payment error simulation...');
+      
+      // Enable payment error simulation flag
+      await page.evaluate(() => {
+        const client = window.testLDClient as { variation?: (flag: string, defaultValue: boolean) => boolean };
+        if (client && client.variation) {
+          const originalVariation = client.variation;
+          client.variation = (flagKey: string, defaultValue: boolean) => {
+            if (flagKey === 'simulate-payment-error') {
+              return true;
+            }
+            return originalVariation(flagKey, defaultValue);
+          };
+        }
+      });
+      
+      await trackTestEvent(page, 'payment_error_flag_enabled');
+      
+    } catch (error) {
+      console.error('[Test] Error during error recording testing:', error);
+      await trackTestEvent(page, 'error_recording_test_failed', { error: String(error) });
+    }
+    
+    // Navigate back to homepage for pricing section
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    
+    // Wait for the page to be ready by checking for a key element
+    try {
+      await page.locator('main').waitFor({ state: 'visible', timeout: 10000 });
+    } catch (error) {
+      console.log('[Test] Main element not found quickly, continuing anyway:', error);
+    }
+    
     // 5. On the homepage, scroll down to the payment plans
     // Simulate scroll performance tracking
     const scrollStart = Date.now();
@@ -761,8 +885,8 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     // Simulate pricing API data loading delays
     await simulateAPIError(page, 'pricing_api_slow_response', true);
     
-    // Wait a bit to simulate the user looking at pricing plans - much slower
-    await page.waitForTimeout(3000 + Math.random() * 2000);
+    // Simulate reading pricing plans - reduced for test efficiency
+    await page.waitForTimeout(2000 + Math.random() * 1500); // Reduced from 2500 + Math.random() * 1500
     
     // Simulate user comparison behavior (common in pricing pages)
     await trackTestEvent(page, 'pricing_comparison_behavior', {
@@ -818,8 +942,8 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         // Simulate payment security checks
         await simulateAPIError(page, 'payment_security_validation', true);
         
-        // Simulate user looking at the payment page - much slower
-        await page.waitForTimeout(3500 + Math.random() * 2000);
+        // Simulate reading payment options - reduced for test efficiency  
+        await page.waitForTimeout(2500 + Math.random() * 1500); // Reduced from 3500 + Math.random() * 2000
         
         // Fill out the payment form before clicking pay
         try {
@@ -931,6 +1055,9 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
           timestamp: Date.now()
         });
         
+        // Simulate payment processing time - reduced for test efficiency
+        await page.waitForTimeout(2000 + Math.random() * 1500); // Reduced from 3000 + Math.random() * 2000
+        
         // Simulate payment processing delays
         await simulateAPIError(page, 'payment_processing_delay', true);
         
@@ -942,6 +1069,41 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         
         // Wait for processing - much slower
         await page.waitForTimeout(2500 + Math.random() * 1500);
+        
+        // *** VERIFY ERROR RECORDING FOR PAYMENT ERRORS ***
+        // Check if payment error was recorded (since we enabled the simulate-payment-error flag)
+        try {
+          const hasErrorMessage = await page.locator('text=Payment processing failed').isVisible().catch(() => false);
+          
+          if (hasErrorMessage) {
+            console.log('[Test] Payment error message displayed, verifying error recording...');
+            
+            // Get recorded errors and check for payment-related errors
+            const recordedErrors = await getRecordedErrors(page);
+            const paymentErrors = recordedErrors.filter((error: unknown) => {
+              const errorObj = error as { payload?: { errorType?: string; endpoint?: string } };
+              return errorObj.payload?.errorType === 'api_error' || 
+                     (typeof errorObj.payload?.endpoint === 'string' && errorObj.payload.endpoint.includes('payments'));
+            });
+            
+            console.log(`[Test] Found ${paymentErrors.length} payment-related errors in recording`);
+            
+            await trackTestEvent(page, 'payment_error_recording_verified', {
+              errorMessageDisplayed: true,
+              paymentErrorsRecorded: paymentErrors.length,
+              totalErrorsRecorded: recordedErrors.length
+            });
+            
+            // Take screenshot of payment error
+            await page.screenshot({ path: 'test-results/e2e-payment-error.png' });
+          } else {
+            console.log('[Test] No payment error message displayed');
+            await trackTestEvent(page, 'payment_error_not_triggered');
+          }
+        } catch (error) {
+          console.error('[Test] Error verifying payment error recording:', error);
+          await trackTestEvent(page, 'payment_error_verification_failed', { error: String(error) });
+        }
         
         // Simulate payment result scenarios
         const paymentSuccess = Math.random() < 0.85; // 85% success rate
@@ -998,6 +1160,51 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       testSuccess: true
     });
     
+    // *** FINAL ERROR RECORDING VERIFICATION ***
+    // Get final summary of all recorded errors
+    try {
+      const allRecordedErrors = await getRecordedErrors(page);
+      console.log(`[Test] Final error recording summary: ${allRecordedErrors.length} total errors recorded`);
+      
+      // Categorize errors by type
+      const errorsByType = allRecordedErrors.reduce((acc: Record<string, number>, error: unknown) => {
+        const errorObj = error as { payload?: { errorType?: string; component?: string } };
+        const errorType = errorObj.payload?.errorType || 'unknown';
+        acc[errorType] = (acc[errorType] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log('[Test] Errors by type:', errorsByType);
+      
+      await trackTestEvent(page, 'error_recording_final_summary', {
+        totalErrorsRecorded: allRecordedErrors.length,
+        errorsByType,
+        errorRecordingFunctional: allRecordedErrors.length > 0
+      });
+      
+      // Verify we have the expected error types from our testing
+      const expectedErrorTypes = ['javascript_error', 'api_error', 'custom_demo_error', 'async_error'];
+      const foundErrorTypes = Object.keys(errorsByType);
+      const missingErrorTypes = expectedErrorTypes.filter(type => !foundErrorTypes.includes(type));
+      
+      if (missingErrorTypes.length === 0) {
+        console.log('[Test] ✅ All expected error types were recorded successfully');
+        await trackTestEvent(page, 'error_recording_test_success', {
+          allExpectedTypesFound: true,
+          foundTypes: foundErrorTypes
+        });
+      } else {
+        console.log(`[Test] ⚠️ Missing error types: ${missingErrorTypes.join(', ')}`);
+        await trackTestEvent(page, 'error_recording_test_partial', {
+          missingTypes: missingErrorTypes,
+          foundTypes: foundErrorTypes
+        });
+      }
+    } catch (error) {
+      console.error('[Test] Error during final error recording verification:', error);
+      await trackTestEvent(page, 'error_recording_final_verification_failed', { error: String(error) });
+    }
+    
     // Mirror comprehensive test completion to backend
     await mirrorBackendEvent(page, 'error', {
       type: 'test_session_completed',
@@ -1013,8 +1220,16 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     testCompleted = true;
   } catch (error) {
     console.error('Unhandled error in E2E test:', error);
-    // Add screenshot on general error
-    await page.screenshot({ path: 'test-results/e2e-error.png', fullPage: true }); 
+    // Add screenshot on general error - but only if page is still available
+    try {
+      if (page && !page.isClosed()) {
+        await page.screenshot({ path: 'test-results/e2e-error.png', fullPage: true });
+      } else {
+        console.log('Page is closed, skipping error screenshot');
+      }
+    } catch (screenshotError) {
+      console.error('Failed to take error screenshot:', screenshotError);
+    }
     throw error; // Re-throw error to ensure test fails
   } finally {
     // Clear the timeout

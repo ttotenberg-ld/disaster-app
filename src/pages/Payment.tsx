@@ -4,6 +4,7 @@ import { useFlags } from 'launchdarkly-react-client-sdk';
 import { Plan } from '../components/PricingPlans';
 import { CreditCard, Lock } from 'lucide-react';
 import { useAuthStore } from '../store/auth';
+import { recordApiError, recordComponentError } from '../lib/launchdarkly';
 
 const Payment = () => {
   const location = useLocation();
@@ -82,7 +83,25 @@ const Payment = () => {
       const simulateError = flags['simulate-payment-error'] === true;
       
       if (simulateError) {
-        setError('Payment processing failed. Please try again or contact support.');
+        const errorMessage = 'Payment processing failed. Please try again or contact support.';
+        setError(errorMessage);
+        
+        // Record the payment error to LaunchDarkly observability
+        recordApiError(
+          '/api/payments/process',
+          402,
+          'Payment processing failed - simulated error',
+          {
+            planName: selectedPlan.name,
+            planPrice: selectedPlan.price,
+            userId: user?.id,
+            userEmail: user?.email,
+            cardLast4: formData.cardNumber.slice(-4),
+            errorSimulated: true,
+            flagTriggered: 'simulate-payment-error'
+          }
+        );
+        
         return;
       }
       
@@ -97,6 +116,17 @@ const Payment = () => {
   
   // If no plan was selected, show error and link to pricing
   if (!selectedPlan) {
+    // Record component error for missing plan
+    recordComponentError(
+      'Payment',
+      'User accessed payment page without selecting a plan',
+      {
+        currentPath: location.pathname,
+        referrer: document.referrer,
+        userId: user?.id
+      }
+    );
+    
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">

@@ -93,12 +93,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   >
                     Config
                   </Link>
-                  <Link 
-                    to="/debug-branding" 
-                    className="flex items-center text-gray-700 hover:text-gray-900 text-xs"
-                  >
-                    Debug
-                  </Link>
                   <button
                     onClick={() => signOut()}
                     className="flex items-center text-gray-700 hover:text-gray-900"

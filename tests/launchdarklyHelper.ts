@@ -21,10 +21,28 @@ interface MockTrace {
   spans: unknown[];
 }
 
+interface MockError {
+  id: string;
+  error: Error;
+  message?: string;
+  payload?: Record<string, unknown>;
+  timestamp: string;
+  recorded: boolean;
+}
+
 interface MockObservabilityData {
   networkRequests: MockNetworkRequest[];
   traces: MockTrace[];
+  errors: MockError[];
   sessionEvents: unknown[];
+}
+
+// Extend Window interface to include our test properties
+declare global {
+  interface Window {
+    testLDClient?: unknown;
+    testLDObservabilityProjectId?: string;
+  }
 }
 
 /**
@@ -41,7 +59,25 @@ export async function initializeLaunchDarklyForTests(page: Page): Promise<void> 
         const observabilityData: MockObservabilityData = {
           networkRequests: [],
           traces: [],
+          errors: [],
           sessionEvents: []
+        };
+
+        // Mock error recording functionality
+        const mockErrorRecording = {
+          recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => {
+            const recordedError: MockError = {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              error,
+              message,
+              payload,
+              timestamp: new Date().toISOString(),
+              recorded: true
+            };
+            observabilityData.errors.push(recordedError);
+            console.log('[Test] Error recorded:', recordedError);
+          },
+          getRecordedErrors: () => observabilityData.errors
         };
 
         // Mock network recording functionality
@@ -84,6 +120,22 @@ export async function initializeLaunchDarklyForTests(page: Page): Promise<void> 
             }
           },
           getTraces: () => observabilityData.traces
+        };
+
+        // Mock LDObserve global object for error recording
+        (window as unknown as { LDObserve: unknown }).LDObserve = {
+          recordError: mockErrorRecording.recordError,
+          recordLog: (message: string, severity?: string) => {
+            console.log(`[Test] Log recorded: ${severity || 'INFO'} - ${message}`);
+          },
+          startSpan: (name: string, callback: (span: unknown) => void) => {
+            const trace = mockTracing.startTrace(name);
+            callback(trace);
+            mockTracing.endTrace(trace.id);
+          },
+          startManualSpan: (name: string) => {
+            return mockTracing.startTrace(name);
+          }
         };
 
         // Intercept fetch requests to simulate network recording
@@ -151,6 +203,7 @@ export async function initializeLaunchDarklyForTests(page: Page): Promise<void> 
             console.log('[Test] Observability data to flush:', {
               networkRequests: observabilityData.networkRequests.length,
               traces: observabilityData.traces.length,
+              errors: observabilityData.errors.length,
               sessionEvents: observabilityData.sessionEvents.length
             });
           },
@@ -164,14 +217,16 @@ export async function initializeLaunchDarklyForTests(page: Page): Promise<void> 
             getObservabilityData: () => observabilityData,
             getNetworkRequests: () => mockNetworkRecording.getRecordedRequests(),
             getTraces: () => mockTracing.getTraces(),
+            getErrors: () => mockErrorRecording.getRecordedErrors(),
             networkRecording: mockNetworkRecording,
-            tracing: mockTracing
+            tracing: mockTracing,
+            errorRecording: mockErrorRecording
           }
         };
 
         // Store client globally for test access
-        (window as Record<string, unknown>).testLDClient = mockClient;
-        (window as Record<string, unknown>).testLDObservabilityProjectId = projectId;
+        window.testLDClient = mockClient;
+        window.testLDObservabilityProjectId = projectId;
         
         console.log('[Test] Mock LaunchDarkly client initialized with observability features');
       },
@@ -193,7 +248,7 @@ export async function identifyTestUser(page: Page, email: string, userId: string
   try {
     await page.evaluate(
       ({ email, userId }) => {
-        const client = (window as any).testLDClient;
+        const client = window.testLDClient as { identify: (context: unknown) => Promise<void> } | undefined;
         if (client) {
           // Create user context
           const userContext = {
@@ -228,8 +283,8 @@ export async function trackTestEvent(page: Page, eventName: string, eventData?: 
   try {
     await page.evaluate(
       ({ eventName, eventData, timestamp }) => {
-        const client = (window as any).testLDClient;
-        const projectId = (window as any).testLDObservabilityProjectId;
+        const client = window.testLDClient as { track: (name: string, data: unknown) => void } | undefined;
+        const projectId = window.testLDObservabilityProjectId;
         
         if (client) {
           // Safely handle the eventData parameter
@@ -266,7 +321,7 @@ export async function trackTestEvent(page: Page, eventName: string, eventData?: 
 export async function shutdownLaunchDarkly(page: Page): Promise<void> {
   try {
     await page.evaluate(() => {
-      const client = (window as any).testLDClient;
+      const client = window.testLDClient as { flush: () => void } | undefined;
       if (client) {
         // Flush any remaining events
         client.flush();
@@ -317,7 +372,7 @@ export async function mirrorBackendEvent(page: Page, eventType: 'signup' | 'logi
 export async function getRecordedNetworkRequests(page: Page): Promise<unknown[]> {
   try {
     return await page.evaluate(() => {
-      const client = (window as any).testLDClient;
+      const client = window.testLDClient as { _test?: { getNetworkRequests: () => unknown[] } } | undefined;
       if (client && client._test) {
         return client._test.getNetworkRequests();
       }
@@ -335,7 +390,7 @@ export async function getRecordedNetworkRequests(page: Page): Promise<unknown[]>
 export async function getRecordedTraces(page: Page): Promise<unknown[]> {
   try {
     return await page.evaluate(() => {
-      const client = (window as any).testLDClient;
+      const client = window.testLDClient as { _test?: { getTraces: () => unknown[] } } | undefined;
       if (client && client._test) {
         return client._test.getTraces();
       }
@@ -343,6 +398,24 @@ export async function getRecordedTraces(page: Page): Promise<unknown[]> {
     });
   } catch (error) {
     console.error('[Test] Error getting recorded traces:', error);
+    return [];
+  }
+}
+
+/**
+ * Get recorded errors from the mock LaunchDarkly observability
+ */
+export async function getRecordedErrors(page: Page): Promise<unknown[]> {
+  try {
+    return await page.evaluate(() => {
+      const client = window.testLDClient as { _test?: { getErrors: () => unknown[] } } | undefined;
+      if (client && client._test) {
+        return client._test.getErrors();
+      }
+      return [];
+    });
+  } catch (error) {
+    console.error('[Test] Error getting recorded errors:', error);
     return [];
   }
 }
@@ -382,7 +455,7 @@ export async function verifyTracing(page: Page): Promise<boolean> {
   try {
     // Trigger a flag evaluation to create a trace
     await page.evaluate(() => {
-      const client = (window as any).testLDClient;
+      const client = window.testLDClient as { variation: (flag: string, defaultValue: boolean) => boolean } | undefined;
       if (client) {
         client.variation('test-flag', false);
       }
@@ -401,21 +474,48 @@ export async function verifyTracing(page: Page): Promise<boolean> {
 }
 
 /**
- * Test the complete observability setup including network recording and tracing
+ * Verify that error recording is working by triggering a test error
  */
-export async function testObservabilityFeatures(page: Page): Promise<{ networkRecording: boolean; tracing: boolean }> {
+export async function verifyErrorRecording(page: Page): Promise<boolean> {
+  try {
+    // Trigger a test error
+    await page.evaluate(() => {
+      const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string) => void } }).LDObserve;
+      if (ldObserve) {
+        ldObserve.recordError(new Error('Test error for verification'), 'Test error message');
+      }
+    });
+
+    // Wait a moment for the error to be recorded
+    await page.waitForTimeout(100);
+
+    // Check if errors were recorded
+    const errors = await getRecordedErrors(page);
+    return Array.isArray(errors) && errors.length > 0;
+  } catch (error) {
+    console.error('[Test] Error verifying error recording:', error);
+    return false;
+  }
+}
+
+/**
+ * Test the complete observability setup including network recording, tracing, and error recording
+ */
+export async function testObservabilityFeatures(page: Page): Promise<{ networkRecording: boolean; tracing: boolean; errorRecording: boolean }> {
   try {
     const networkRecording = await verifyNetworkRecording(page);
     const tracing = await verifyTracing(page);
+    const errorRecording = await verifyErrorRecording(page);
 
     console.log('[Test] Observability features test results:', {
       networkRecording,
-      tracing
+      tracing,
+      errorRecording
     });
 
-    return { networkRecording, tracing };
+    return { networkRecording, tracing, errorRecording };
   } catch (error) {
     console.error('[Test] Error testing observability features:', error);
-    return { networkRecording: false, tracing: false };
+    return { networkRecording: false, tracing: false, errorRecording: false };
   }
 } 
