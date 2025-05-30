@@ -311,7 +311,10 @@ function ConfigurationPage() {
                 <h2 className="text-lg font-semibold mb-3 text-gray-800">Run E2E Test</h2>
                 <p className="text-sm text-gray-600 mb-4">
                     Run the automated end-to-end test using the currently applied branding.
-                    The test will run headlessly in the background.
+                    The test will run headlessly in the background. 
+                    <br />
+                    <br />
+                    <b>It will take approximately 3 minutes. Please do not close this page until it is complete.</b>
                 </p>
                 <button
                     onClick={handleRunTest}
