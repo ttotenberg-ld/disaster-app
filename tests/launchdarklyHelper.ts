@@ -563,4 +563,219 @@ export async function testObservabilityFeatures(page: Page): Promise<{ networkRe
     console.error('[Test] Error testing observability features:', error);
     return { networkRecording: false, tracing: false, errorRecording: false };
   }
+}
+
+// ============================================================================
+// CATEGORY-SPECIFIC ERROR RECORDING FUNCTIONS
+// Each function creates errors with unique stack traces for proper LaunchDarkly grouping
+// ============================================================================
+
+/**
+ * Record authentication-related errors
+ */
+export async function recordAuthenticationError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const authError = new Error(errorMessage);
+          authError.name = 'AuthenticationError';
+          ldObserve.recordError(authError, customMessage, payload);
+          console.log(`[Test] Recorded authentication error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording authentication error:', error);
+    return false;
+  }
+}
+
+/**
+ * Record navigation-related errors
+ */
+export async function recordNavigationError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const navError = new Error(errorMessage);
+          navError.name = 'NavigationError';
+          ldObserve.recordError(navError, customMessage, payload);
+          console.log(`[Test] Recorded navigation error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording navigation error:', error);
+    return false;
+  }
+}
+
+/**
+ * Record user flow errors (signup, profile, onboarding)
+ */
+export async function recordUserFlowError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const userFlowError = new Error(errorMessage);
+          userFlowError.name = 'UserFlowError';
+          ldObserve.recordError(userFlowError, customMessage, payload);
+          console.log(`[Test] Recorded user flow error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording user flow error:', error);
+    return false;
+  }
+}
+
+/**
+ * Record dashboard/analytics errors
+ */
+export async function recordDashboardError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const dashboardError = new Error(errorMessage);
+          dashboardError.name = 'DashboardError';
+          ldObserve.recordError(dashboardError, customMessage, payload);
+          console.log(`[Test] Recorded dashboard error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording dashboard error:', error);
+    return false;
+  }
+}
+
+/**
+ * Record pricing-related errors
+ */
+export async function recordPricingError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const pricingError = new Error(errorMessage);
+          pricingError.name = 'PricingError';
+          ldObserve.recordError(pricingError, customMessage, payload);
+          console.log(`[Test] Recorded pricing error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording pricing error:', error);
+    return false;
+  }
+}
+
+/**
+ * Record payment-related errors
+ */
+export async function recordPaymentError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const paymentError = new Error(errorMessage);
+          paymentError.name = 'PaymentError';
+          ldObserve.recordError(paymentError, customMessage, payload);
+          console.log(`[Test] Recorded payment error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording payment error:', error);
+    return false;
+  }
+}
+
+/**
+ * Record session/cleanup errors
+ */
+export async function recordSessionError(
+  page: Page, 
+  errorMessage: string, 
+  customMessage?: string,
+  payload?: Record<string, unknown>
+): Promise<boolean> {
+  try {
+    await page.evaluate(
+      ({ errorMessage, customMessage, payload }) => {
+        const ldObserve = (window as { LDObserve?: { recordError: (error: Error, message?: string, payload?: Record<string, unknown>) => void } }).LDObserve;
+        if (ldObserve) {
+          const sessionError = new Error(errorMessage);
+          sessionError.name = 'SessionError';
+          ldObserve.recordError(sessionError, customMessage, payload);
+          console.log(`[Test] Recorded session error: ${errorMessage}`, { customMessage, payload });
+        }
+      },
+      { errorMessage, customMessage, payload }
+    );
+    await page.waitForTimeout(100);
+    return true;
+  } catch (error) {
+    console.error('[Test] Error recording session error:', error);
+    return false;
+  }
 } 

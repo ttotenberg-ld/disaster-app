@@ -7,7 +7,13 @@ import {
   trackTestEvent,
   getRecordedErrors,
   testObservabilityFeatures,
-  recordTestError
+  recordAuthenticationError,
+  recordNavigationError,
+  recordUserFlowError,
+  recordDashboardError,
+  recordPricingError,
+  recordPaymentError,
+  recordSessionError
 } from './launchdarklyHelper';
 
 // Default branding values (used if environment variables are not set)
@@ -196,7 +202,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     
     // *** EARLY ERROR RECORDING FOR COMPREHENSIVE TELEMETRY ***
     // Simulate authentication service connectivity issue during session start
-    await recordTestError(page, 'Authentication service connection timeout', 'Unable to verify session tokens with auth provider', {
+    await recordAuthenticationError(page, 'Authentication service connection timeout', 'Unable to verify session tokens with auth provider', {
       statusCode: 504,
       endpoint: '/api/auth/verify-session',
       errorType: 'gateway_timeout',
@@ -229,7 +235,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     await page.waitForURL('/', { timeout: 15000 });
     
     // Simulate realistic page load error
-    await recordTestError(page, 'Failed to load navigation component within timeout', 'Navigation component did not render properly', {
+    await recordNavigationError(page, 'Failed to load navigation component within timeout', 'Navigation component did not render properly', {
       component: 'header-navigation',
       timeout: 5000,
       endpoint: '/api/navigation-config'
@@ -596,7 +602,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     await trackTestEvent(page, 'signup_form_submitted');
     
     // Simulate realistic signup API error
-    await recordTestError(page, 'Internal server error during user registration', 'Database connection timeout while creating user account', {
+    await recordUserFlowError(page, 'Internal server error during user registration', 'Database connection timeout while creating user account', {
       statusCode: 500,
       endpoint: '/api/auth/signup',
       errorType: 'database_timeout',
@@ -643,7 +649,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         });
         
         // Simulate realistic profile data loading error
-        await recordTestError(page, 'Unable to fetch user profile data', 'Profile service returned 404 for user preferences', {
+        await recordUserFlowError(page, 'Unable to fetch user profile data', 'Profile service returned 404 for user preferences', {
           statusCode: 404,
           endpoint: '/api/user/profile/preferences',
           userId: testId,
@@ -652,7 +658,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         
         // *** ADDITIONAL ERROR FOR USER ONBOARDING TELEMETRY ***
         // Simulate user preference initialization error
-        await recordTestError(page, 'User onboarding workflow configuration error', 'Failed to load default user preferences from template', {
+        await recordUserFlowError(page, 'User onboarding workflow configuration error', 'Failed to load default user preferences from template', {
           statusCode: 500,
           endpoint: '/api/user/onboarding/preferences',
           userId: testId,
@@ -732,7 +738,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       
       // *** ADDITIONAL ERROR FOR NAVIGATION TELEMETRY ***
       // Simulate navigation service configuration error
-      await recordTestError(page, 'Navigation service route resolution failed', 'Unable to resolve dynamic route configuration for user role', {
+      await recordNavigationError(page, 'Navigation service route resolution failed', 'Unable to resolve dynamic route configuration for user role', {
         statusCode: 422,
         endpoint: '/api/navigation/routes',
         userId: testId,
@@ -819,7 +825,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       
       // *** ALWAYS RECORD THIS ERROR FOR CONSISTENT TELEMETRY ***
       // Simulate realistic dashboard data loading error (moved outside conditional)
-      await recordTestError(page, 'Failed to retrieve analytics dashboard data', 'Analytics service connection refused', {
+      await recordDashboardError(page, 'Failed to retrieve analytics dashboard data', 'Analytics service connection refused', {
         statusCode: 503,
         endpoint: '/api/analytics/dashboard',
         errorType: 'service_unavailable',
@@ -946,7 +952,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     await trackTestEvent(page, 'pricing_section_viewed');
     
     // Simulate realistic pricing data error
-    await recordTestError(page, 'Pricing configuration service temporarily unavailable', 'Unable to load current pricing plans from backend', {
+    await recordPricingError(page, 'Pricing configuration service temporarily unavailable', 'Unable to load current pricing plans from backend', {
       statusCode: 502,
       endpoint: '/api/pricing/plans',
       errorType: 'bad_gateway',
@@ -1018,7 +1024,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         
         // *** ALWAYS RECORD THIS ERROR FOR CONSISTENT TELEMETRY ***
         // Simulate realistic payment form validation error (moved outside try/catch)
-        await recordTestError(page, 'Payment form validation failed', 'Required billing address fields not found in form schema', {
+        await recordPaymentError(page, 'Payment form validation failed', 'Required billing address fields not found in form schema', {
           component: 'payment-form',
           validationError: 'missing_required_fields',
           missingFields: ['billingAddress', 'postalCode'],
@@ -1136,7 +1142,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         });
         
         // Simulate realistic payment processing error
-        await recordTestError(page, 'Payment gateway communication failure', 'HTTP timeout while processing payment with external provider', {
+        await recordPaymentError(page, 'Payment gateway communication failure', 'HTTP timeout while processing payment with external provider', {
           statusCode: 408,
           endpoint: '/api/payments/process',
           paymentProvider: 'stripe',
@@ -1247,7 +1253,7 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     });
     
     // Simulate realistic session management error
-    await recordTestError(page, 'Session storage cleanup failed', 'Unable to clear expired session tokens from local storage', {
+    await recordSessionError(page, 'Session storage cleanup failed', 'Unable to clear expired session tokens from local storage', {
       component: 'session-manager',
       errorType: 'cleanup_failure',
       expiredTokens: 3,
