@@ -194,6 +194,16 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       }
     ]);
     
+    // *** EARLY ERROR RECORDING FOR COMPREHENSIVE TELEMETRY ***
+    // Simulate authentication service connectivity issue during session start
+    await recordTestError(page, 'Authentication service connection timeout', 'Unable to verify session tokens with auth provider', {
+      statusCode: 504,
+      endpoint: '/api/auth/verify-session',
+      errorType: 'gateway_timeout',
+      authProvider: 'oauth2-service',
+      retryAttempt: 1
+    });
+    
     // Generate a unique test email that looks like a real email
     const names = ['john', 'mary', 'david', 'sarah', 'mike', 'jennifer', 'robert', 'lisa'];
     const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'];
@@ -640,6 +650,16 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
           resource: 'user_preferences'
         });
         
+        // *** ADDITIONAL ERROR FOR USER ONBOARDING TELEMETRY ***
+        // Simulate user preference initialization error
+        await recordTestError(page, 'User onboarding workflow configuration error', 'Failed to load default user preferences from template', {
+          statusCode: 500,
+          endpoint: '/api/user/onboarding/preferences',
+          userId: testId,
+          errorType: 'template_loading_failure',
+          templateVersion: '1.4.2'
+        });
+        
         // Simulate user profile loading issues
         await simulateAPIError(page, 'profile_data_loading_delay', true);
         
@@ -709,6 +729,16 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
     try {
       // Track homepage navigation attempt
       await trackTestEvent(page, 'homepage_navigation_started');
+      
+      // *** ADDITIONAL ERROR FOR NAVIGATION TELEMETRY ***
+      // Simulate navigation service configuration error
+      await recordTestError(page, 'Navigation service route resolution failed', 'Unable to resolve dynamic route configuration for user role', {
+        statusCode: 422,
+        endpoint: '/api/navigation/routes',
+        userId: testId,
+        errorType: 'route_resolution_failure',
+        userRole: 'authenticated_user'
+      });
       
       // Simulate navigation API delays
       await simulateNetworkLatency(page, 300, 800);
@@ -787,6 +817,15 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
       // Track dashboard access
       await trackTestEvent(page, 'dashboard_accessed_for_error_testing');
       
+      // *** ALWAYS RECORD THIS ERROR FOR CONSISTENT TELEMETRY ***
+      // Simulate realistic dashboard data loading error (moved outside conditional)
+      await recordTestError(page, 'Failed to retrieve analytics dashboard data', 'Analytics service connection refused', {
+        statusCode: 503,
+        endpoint: '/api/analytics/dashboard',
+        errorType: 'service_unavailable',
+        serviceName: 'analytics-service'
+      });
+      
       // Verify dashboard controls are visible
       const dashboardControlsVisible = await page.locator('text=Dashboard Controls').isVisible().catch(() => false);
       
@@ -800,14 +839,6 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         // Get initial error count
         const initialErrors = await getRecordedErrors(page);
         const initialErrorCount = initialErrors.length;
-        
-        // Simulate realistic dashboard data loading error
-        await recordTestError(page, 'Failed to retrieve analytics dashboard data', 'Analytics service connection refused', {
-          statusCode: 503,
-          endpoint: '/api/analytics/dashboard',
-          errorType: 'service_unavailable',
-          serviceName: 'analytics-service'
-        });
         
         // Test Refresh Data (may generate API errors)
         const refreshButton = page.locator('button:has-text("Refresh Data")');
@@ -985,18 +1016,19 @@ test('end-to-end user flow with realistic interaction', async ({ page, context }
         // Simulate reading payment options - reduced for test efficiency  
         await page.waitForTimeout(2500 + Math.random() * 1500); // Reduced from 3500 + Math.random() * 2000
         
+        // *** ALWAYS RECORD THIS ERROR FOR CONSISTENT TELEMETRY ***
+        // Simulate realistic payment form validation error (moved outside try/catch)
+        await recordTestError(page, 'Payment form validation failed', 'Required billing address fields not found in form schema', {
+          component: 'payment-form',
+          validationError: 'missing_required_fields',
+          missingFields: ['billingAddress', 'postalCode'],
+          formVersion: '2.1.3'
+        });
+        
         // Fill out the payment form before clicking pay
         try {
           // Simulate form security scanning
           await trackTestEvent(page, 'payment_form_security_scan');
-          
-          // Simulate realistic payment form validation error
-          await recordTestError(page, 'Payment form validation failed', 'Required billing address fields not found in form schema', {
-            component: 'payment-form',
-            validationError: 'missing_required_fields',
-            missingFields: ['billingAddress', 'postalCode'],
-            formVersion: '2.1.3'
-          });
           
           // Look for name on card field
           const nameOnCardInput = page.locator('input[name="nameOnCard"], input[placeholder*="Name"], input[aria-label*="Name"]').first();
